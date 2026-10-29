@@ -1,5 +1,7 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleGenerate } from "./generate.ts";
+import handler, { handleGenerate } from "./generate.ts";
 import { resetRateLimit } from "./rateLimit.ts";
 
 afterEach(() => {
@@ -179,5 +181,49 @@ describe("POST /api/generate", () => {
       });
     }
     expect(last?.status).toBe(429);
+  });
+
+  it("accepts the Node.js request Vercel passes to the function", async () => {
+    const previousKey = process.env.LLM_API_KEY;
+    process.env.LLM_API_KEY = "server-key";
+    const fetchMock = llmFetch(
+      JSON.stringify({
+        cards: [{ term: "fork()", description: "Creates a new process.", acceptedAnswers: ["fork"] }],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const raw = JSON.stringify(validBody);
+      const req = Object.assign(Readable.from([Buffer.from(raw)]), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": String(Buffer.byteLength(raw)),
+          "x-forwarded-for": "203.0.113.9",
+        },
+      }) as IncomingMessage;
+      const chunks: Buffer[] = [];
+      const res = {
+        statusCode: 0,
+        writableEnded: false,
+        setHeader() {},
+        end(chunk?: Buffer | string) {
+          this.writableEnded = true;
+          if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        },
+      } as unknown as ServerResponse;
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual({
+        cards: [{ term: "fork()", description: "Creates a new process.", acceptedAnswers: ["fork"] }],
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      if (previousKey === undefined) delete process.env.LLM_API_KEY;
+      else process.env.LLM_API_KEY = previousKey;
+      vi.unstubAllGlobals();
+    }
   });
 });

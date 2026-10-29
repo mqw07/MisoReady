@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   applyFillBlankPreference,
   extractJsonPayload,
@@ -170,6 +171,43 @@ export async function handleGenerate(
   }
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  return handleGenerate(request);
+function nodeHeaders(headers: IncomingMessage["headers"]): Headers {
+  const result = new Headers();
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === "string") result.set(key, value);
+    else if (Array.isArray(value)) result.set(key, value.join(", "));
+  }
+  return result;
+}
+
+/** Vercel's Node runtime passes IncomingMessage, whose headers have no `.get`. */
+export async function handleNodeGenerate(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const body = Buffer.concat(chunks);
+    const method = req.method ?? "GET";
+    const request = new Request("http://127.0.0.1/api/generate", {
+      method,
+      headers: nodeHeaders(req.headers),
+      body: method === "GET" || method === "HEAD" ? undefined : body,
+    });
+    const response = await handleGenerate(request);
+    res.statusCode = response.status;
+    response.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+    res.end(Buffer.from(await response.arrayBuffer()));
+  } catch {
+    if (res.writableEnded) return;
+    res.statusCode = 500;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ error: "Generation failed. Try again in a moment." }));
+  }
+}
+
+export default function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return handleNodeGenerate(req, res);
 }
