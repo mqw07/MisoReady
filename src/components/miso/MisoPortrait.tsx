@@ -22,7 +22,7 @@ export function MisoPortrait({
   const frameClass = `h-auto w-full ${idle ? "miso-idle" : ""}`;
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={className}>
       {look ? (
         <img
           src={look.src}

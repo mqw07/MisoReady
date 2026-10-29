@@ -18,8 +18,8 @@ export function TodayPage() {
   usePageTitle("Today");
   const { courses, units, cards, state } = useLibrary();
   const recent = courses[courses.length - 1];
-  const dueCount = countDueCards(cards);
   const progress = studyProgress(state);
+  const dueCount = countDueCards(cards);
   const dueLabel = dueCount === 0 ? "No cards are waiting." : `${dueCount} ${dueCount === 1 ? "card is" : "cards are"} waiting.`;
 
   return (
@@ -67,26 +67,28 @@ export function TodayPage() {
           <PixelCloud kind="small" tone="blue" className="decor absolute -top-[3.7rem] right-4 w-14" />
           <GrassStrip variant="low" />
           <PlusSparkle className="absolute top-1 right-3 h-4 w-4" />
-          <PlusSparkle className="absolute top-10 right-[10.6rem] h-3.5 w-3.5" />
+          <PlusSparkle className="absolute top-10 left-28 h-3.5 w-3.5" />
           <PlusSparkle className="absolute top-[7.2rem] right-1 h-3 w-3" />
-          <div className="relative z-10 flex flex-col items-start gap-3.5 px-6 pt-1">
-            <span className="rounded-full bg-[#cfe4f6] px-4 py-1.5 text-sm font-extrabold text-[#17233b]">
-              {progress.reviewsToday}/{progress.dailyGoal} today
-            </span>
-            <div className="flex items-start gap-2.5">
-              <Sprite name="streak" className="mt-0.5 h-7 w-auto" />
-              <p className="text-sm leading-6 font-bold text-muted">
-                {formatPoints(progress.points)} ·
-                <br />
-                {formatStreak(progress.currentStreak)}
-              </p>
+          <div className="relative z-10 flex min-h-[174px] items-end justify-between gap-3 px-5 pt-2 pb-1">
+            <div className="min-w-0 max-w-[10.5rem] self-start">
+              <span className="inline-block rounded-full bg-[#cfe4f6] px-4 py-1.5 text-sm font-extrabold text-[#17233b]">
+                {progress.reviewsToday}/{progress.dailyGoal} today
+              </span>
+              <div className="mt-3.5 flex items-start gap-2.5">
+                <Sprite name="streak" className="mt-0.5 h-7 w-auto shrink-0" />
+                <p className="text-sm leading-6 font-bold text-muted">
+                  {formatPoints(progress.points)} ·
+                  <br />
+                  {formatStreak(progress.currentStreak)}
+                </p>
+              </div>
             </div>
+            <MisoPortrait
+              className="w-[8.75rem] shrink-0"
+              equipped={state.miso.equipped}
+              idle
+            />
           </div>
-          <MisoPortrait
-            className="absolute right-5 bottom-[14px] w-[7.6rem] xl:w-[9.2rem]"
-            equipped={state.miso.equipped}
-            idle
-          />
         </TitledPanel>
 
         <TitledPanel
