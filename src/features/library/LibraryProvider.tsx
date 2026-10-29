@@ -1,0 +1,259 @@
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { createAppDocumentRepository } from "../../repositories/appDocument.ts";
+import { getStorage } from "../../repositories/storage.ts";
+import type { CosmeticCategory } from "../../services/gamification/catalog.ts";
+import {
+  equipCosmetic as wearCosmetic,
+  purchaseCosmetic,
+  unequipCategory,
+} from "../../services/gamification/shop.ts";
+import type { CardContent, ReviewRating, StudyMode } from "../../types/domain.ts";
+import { LibraryContext } from "./libraryContext.ts";
+import {
+  deleteCard as removeCard,
+  deleteCourse as removeCourse,
+  deleteUnit as removeUnit,
+  duplicateCard as copyCard,
+  insertCard,
+  insertCards,
+  insertCourse,
+  insertUnit,
+  moveCard as relocateCard,
+  recordReview,
+  renameCourse as renameCourseRecord,
+  renameUnit as renameUnitRecord,
+  updateCard as editCard,
+} from "./mutations.ts";
+
+export function LibraryProvider({ children }: { children: ReactNode }) {
+  const repository = useMemo(() => createAppDocumentRepository(getStorage()), []);
+  const loaded = useMemo(() => repository.load(), [repository]);
+  const persistBlocked = loaded.status === "invalid";
+  const [state, setState] = useState(loaded.state);
+  const [persistError, setPersistError] = useState<string | null>(
+    loaded.status === "invalid" ? loaded.reason : null,
+  );
+  const stateRef = useRef(loaded.state);
+
+  const commit = useCallback(
+    (next: typeof state) => {
+      stateRef.current = next;
+      setState(next);
+      if (persistBlocked) return;
+      const result = repository.save(next);
+      setPersistError(result.status === "error" ? result.reason : null);
+    },
+    [persistBlocked, repository],
+  );
+
+  const createCourse = useCallback(
+    (name: string) => {
+      const result = insertCourse(stateRef.current, name);
+      commit(result.state);
+      return result.course;
+    },
+    [commit],
+  );
+
+  const renameCourse = useCallback(
+    (courseId: string, name: string) => {
+      const result = renameCourseRecord(stateRef.current, courseId, name);
+      if (!result) return null;
+      commit(result.state);
+      return result.course;
+    },
+    [commit],
+  );
+
+  const deleteCourse = useCallback(
+    (courseId: string) => {
+      const result = removeCourse(stateRef.current, courseId);
+      if (result.deleted) commit(result.state);
+      return result.deleted;
+    },
+    [commit],
+  );
+
+  const createUnit = useCallback(
+    (courseId: string, name: string) => {
+      const result = insertUnit(stateRef.current, courseId, name);
+      if (!result) return null;
+      commit(result.state);
+      return result.unit;
+    },
+    [commit],
+  );
+
+  const renameUnit = useCallback(
+    (unitId: string, name: string) => {
+      const result = renameUnitRecord(stateRef.current, unitId, name);
+      if (!result) return null;
+      commit(result.state);
+      return result.unit;
+    },
+    [commit],
+  );
+
+  const deleteUnit = useCallback(
+    (unitId: string) => {
+      const result = removeUnit(stateRef.current, unitId);
+      if (result.deleted) commit(result.state);
+      return result.deleted;
+    },
+    [commit],
+  );
+
+  const createCard = useCallback(
+    (unitId: string, content: CardContent) => {
+      const result = insertCard(stateRef.current, unitId, content);
+      if (!result) return null;
+      commit(result.state);
+      return result.card;
+    },
+    [commit],
+  );
+
+  const createCards = useCallback(
+    (unitId: string, contents: CardContent[]) => {
+      const result = insertCards(stateRef.current, unitId, contents);
+      if (!result) return null;
+      commit(result.state);
+      return result.cards;
+    },
+    [commit],
+  );
+
+  const updateCard = useCallback(
+    (cardId: string, content: CardContent) => {
+      const result = editCard(stateRef.current, cardId, content);
+      if (!result) return null;
+      commit(result.state);
+      return result.card;
+    },
+    [commit],
+  );
+
+  const deleteCard = useCallback(
+    (cardId: string) => {
+      const result = removeCard(stateRef.current, cardId);
+      if (result.deleted) commit(result.state);
+      return result.deleted;
+    },
+    [commit],
+  );
+
+  const duplicateCard = useCallback(
+    (cardId: string) => {
+      const result = copyCard(stateRef.current, cardId);
+      if (!result) return null;
+      commit(result.state);
+      return result.card;
+    },
+    [commit],
+  );
+
+  const moveCard = useCallback(
+    (cardId: string, unitId: string) => {
+      const result = relocateCard(stateRef.current, cardId, unitId);
+      if (!result) return null;
+      commit(result.state);
+      return result.card;
+    },
+    [commit],
+  );
+
+  const buyCosmetic = useCallback(
+    (cosmeticId: string) => {
+      const result = purchaseCosmetic(stateRef.current, cosmeticId);
+      if ("error" in result) return result.error;
+      commit(result.state);
+      return null;
+    },
+    [commit],
+  );
+
+  const equipCosmetic = useCallback(
+    (cosmeticId: string) => {
+      const result = wearCosmetic(stateRef.current, cosmeticId);
+      if ("error" in result) return result.error;
+      commit(result.state);
+      return null;
+    },
+    [commit],
+  );
+
+  const unequipCosmetic = useCallback(
+    (category: CosmeticCategory) => {
+      commit(unequipCategory(stateRef.current, category).state);
+    },
+    [commit],
+  );
+
+  const submitReview = useCallback(
+    (input: {
+      cardId: string;
+      rating: ReviewRating;
+      mode: StudyMode;
+      reschedule: boolean;
+      userAnswer?: string;
+      correct?: boolean;
+    }) => {
+      const result = recordReview(stateRef.current, input);
+      if (!result) return null;
+      commit(result.state);
+      return result.review;
+    },
+    [commit],
+  );
+
+  const value = useMemo(
+    () => ({
+      persistBlocked,
+      persistError,
+      state,
+      courses: state.courses,
+      units: state.units,
+      cards: state.cards,
+      createCourse,
+      renameCourse,
+      deleteCourse,
+      createUnit,
+      renameUnit,
+      deleteUnit,
+      createCard,
+      createCards,
+      updateCard,
+      deleteCard,
+      duplicateCard,
+      moveCard,
+      miso: state.miso,
+      buyCosmetic,
+      equipCosmetic,
+      unequipCosmetic,
+      submitReview,
+    }),
+    [
+      persistBlocked,
+      persistError,
+      state,
+      createCourse,
+      renameCourse,
+      deleteCourse,
+      createUnit,
+      renameUnit,
+      deleteUnit,
+      createCard,
+      createCards,
+      updateCard,
+      deleteCard,
+      duplicateCard,
+      moveCard,
+      buyCosmetic,
+      equipCosmetic,
+      unequipCosmetic,
+      submitReview,
+    ],
+  );
+
+  return <LibraryContext value={value}>{children}</LibraryContext>;
+}
