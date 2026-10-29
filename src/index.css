@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", "Segoe UI", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: "Pixelify Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-hand: "Caveat", "Segoe Print", cursive;
+
+  /* Values below were sampled from the supplied dashboard reference (design/dashboard-reference.png). */
+  --color-canvas: #fef8ec;
+  --color-surface: #fffcf6;
+  --color-surface-muted: #fff4e4;
+  --color-surface-sunken: #f8efe0;
+  --color-sidebar: #fcf5e5;
+  --color-ink: #26100b;
+  --color-ink-soft: #46261e;
+  --color-muted: #5f5a5e;
+  --color-faint: #7d7679;
+  --color-line: #e4d0b7;
+  --color-line-strong: #d6bfa0;
+  --color-nav-active: #e2e6c1;
+  --color-accent-soft: #eaf3d8;
+  --color-accent-ink: #2b5a27;
+  --color-focus: #2f5a2c;
+  --color-danger: #8d2f2a;
+
+  /* Primary matches the reference button hue but is darker so white labels stay readable. */
+  --color-primary: #3f7d51;
+  --color-primary-hover: #386f48;
+  --color-primary-shadow: #2d5a3a;
+  --color-green: #6f9e62;
+  --color-green-soft: #e3eac9;
+  --color-yellow: #f6c85f;
+  --color-yellow-soft: #fef8ea;
+  --color-lavender: #e8e0f7;
+  --color-blue: #e8f6ff;
+  --color-peach: #f7dfc5;
+  --color-sky: #c3e0f2;
+  --color-gold-line: #eec27d;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * Every panel and section subtitle uses the pixel face. Subtitles are semi-bold: at panel
+   * title size the bold weight closes the opening of the capital C so "Continue" reads as
+   * "Ontinue". Display text (greeting, numbers, logo) uses full bold.
+   */
+  h2,
+  h3 {
+    font-family: var(--font-pixel);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  h1,
+  .font-pixel {
+    font-weight: 700;
+  }
+
+  button:not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  dialog {
+    margin: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+  }
+
+  dialog::backdrop {
+    background: rgb(66 38 31 / 0.28);
+  }
+}
+
+@layer components {
+  /*
+   * Pixel frame: a flat border whose corners step like a sprite.
+   * The outer clip draws the border colour, ::before draws the fill, and the
+   * bottom ring is one pixel step thicker in --pb-depth for a tactile edge.
+   * clip-path also clips outlines, so focus is shown by recolouring the frame.
+   * Add `relative` to the element (dialogs are already positioned).
+   */
+  .pixel-box {
+    --s: 3px;
+    --pb-border: #e7d5bc;
+    --pb-fill: var(--color-surface);
+    --pb-depth: #d9c3a4;
+    --pb-head: transparent;
+    --pb-head-line: transparent;
+    --pb-head-h: 0px;
+    --pb-clip: polygon(
+      0 calc(var(--s) * 2),
+      var(--s) calc(var(--s) * 2),
+      var(--s) var(--s),
+      calc(var(--s) * 2) var(--s),
+      calc(var(--s) * 2) 0,
+      calc(100% - var(--s) * 2) 0,
+      calc(100% - var(--s) * 2) var(--s),
+      calc(100% - var(--s)) var(--s),
+      calc(100% - var(--s)) calc(var(--s) * 2),
+      100% calc(var(--s) * 2),
+      100% calc(100% - var(--s) * 2),
+      calc(100% - var(--s)) calc(100% - var(--s) * 2),
+      calc(100% - var(--s)) calc(100% - var(--s)),
+      calc(100% - var(--s) * 2) calc(100% - var(--s)),
+      calc(100% - var(--s) * 2) 100%,
+      calc(var(--s) * 2) 100%,
+      calc(var(--s) * 2) calc(100% - var(--s)),
+      var(--s) calc(100% - var(--s)),
+      var(--s) calc(100% - var(--s) * 2),
+      0 calc(100% - var(--s) * 2)
+    );
+    isolation: isolate;
+    background: linear-gradient(
+      to bottom,
+      var(--pb-border) calc(100% - var(--s)),
+      var(--pb-depth) calc(100% - var(--s))
+    );
+    clip-path: var(--pb-clip);
+  }
+
+  .pixel-box::before {
+    content: "";
+    position: absolute;
+    inset: var(--s) var(--s) calc(var(--s) * 2) var(--s);
+    z-index: -1;
+    background: linear-gradient(
+      to bottom,
+      var(--pb-head) calc(var(--pb-head-h) - 2px),
+      var(--pb-head-line) calc(var(--pb-head-h) - 2px),
+      var(--pb-head-line) var(--pb-head-h),
+      var(--pb-fill) var(--pb-head-h)
+    );
+    clip-path: var(--pb-clip);
+  }
+
+  .pixel-box-sm {
+    --s: 2px;
+  }
+
+  .pixel-box-head {
+    --pb-head-h: 62px;
+  }
+
+  .pixel-box:focus-visible {
+    outline: none;
+    --pb-border: var(--color-ink);
+    --pb-depth: var(--color-ink);
+  }
+
+  .pixel-box-link:hover {
+    --pb-border: var(--pb-hover, #d2b88f);
+  }
+
+  .pixel-box:active {
+    --pb-depth: var(--pb-border);
+  }
+
+  .pb-surface {
+    --pb-hover: #d2b88f;
+  }
+  .pb-sunshine {
+    --pb-border: #eec27d;
+    --pb-fill: #fef8ea;
+    --pb-depth: #deaa5b;
+    --pb-head: #fef0d3;
+    --pb-head-line: #f8e0b0;
+  }
+  /* The reference Miso card has no visible title band, so the band matches the fill. */
+  .pb-sky {
+    --pb-border: #a9cce7;
+    --pb-fill: #e8f6ff;
+    --pb-depth: #8bb5d6;
+    --pb-head: #e8f6ff;
+    --pb-head-line: #e8f6ff;
+  }
+  .pb-lavender {
+    --pb-border: #d9cdeb;
+    --pb-fill: #fdf9fa;
+    --pb-depth: #c1b2dc;
+    --pb-head: #f3ebfb;
+    --pb-head-line: #e4d9f2;
+    --pb-hover: #a898d6;
+  }
+  .pb-meadow {
+    --pb-border: #bfc9a9;
+    --pb-fill: #fefbf4;
+    --pb-depth: #a5b18a;
+    --pb-head: #eef2da;
+    --pb-head-line: #d9e1bd;
+  }
+  .pb-leaf {
+    --pb-border: #c6d3ab;
+    --pb-fill: #fefbf2;
+    --pb-depth: #adbd8f;
+    --pb-hover: #8fa66b;
+  }
+  .pb-muted {
+    --pb-border: #d9c3a4;
+    --pb-fill: #fff4e4;
+    --pb-depth: #cdb48f;
+  }
+  .pb-primary {
+    --pb-border: #2d5a3a;
+    --pb-fill: var(--color-primary);
+    --pb-depth: #234a2e;
+  }
+  .pb-primary:hover {
+    --pb-fill: var(--color-primary-hover);
+  }
+  .pb-danger {
+    --pb-border: #6e2420;
+    --pb-fill: var(--color-danger);
+    --pb-depth: #5a1c19;
+  }
+  .pb-danger:hover {
+    --pb-fill: #7a2824;
+  }
+
+  /* Inputs cannot use ::before, so the stepped corner is a box-shadow ring. */
+  .pixel-input {
+    border: 0;
+    border-radius: 0;
+    margin: 2px;
+    box-shadow:
+      0 -2px 0 0 var(--pi-border, #d9c3a4),
+      0 2px 0 0 var(--pi-border, #d9c3a4),
+      -2px 0 0 0 var(--pi-border, #d9c3a4),
+      2px 0 0 0 var(--pi-border, #d9c3a4);
+  }
+}
+
+.pixel {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  shape-rendering: crispEdges;
+}
+
+.decor {
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes miso-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes sparkle-twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-1.5rem);
+  }
+  to {
+    transform: translateX(2.5rem);
+  }
+}
+
+.cloud-drift {
+  animation: cloud-drift 80s ease-in-out infinite alternate;
+}
+
+.miso-idle {
+  animation: miso-idle 3.4s steps(4, end) infinite;
+}
+
+@keyframes miso-react {
+  from {
+    transform: translateY(4px);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.miso-react {
+  animation: miso-react 280ms ease-out;
+}
+
+.sparkle {
+  animation: sparkle-twinkle 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .miso-idle,
+  .miso-react,
+  .sparkle,
+  .cloud-drift {
+    animation: none !important;
+  }
+}
