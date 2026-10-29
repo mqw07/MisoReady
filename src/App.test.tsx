@@ -251,8 +251,10 @@ describe("Miso shell", () => {
     await user.type(screen.getByRole("textbox", { name: "Your answer" }), "Fork()");
     await user.click(screen.getByRole("button", { name: "Check answer" }));
     expect(screen.getByText("Correct")).toBeInTheDocument();
+    expect(screen.getByText("1 correct")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Good, shortcut 3/ }));
     expect(screen.getByRole("heading", { name: "Session complete" })).toBeInTheDocument();
+    expect(screen.getByText(/1 correct/)).toBeInTheDocument();
     expect(screen.getAllByText(/points earned/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("link", { name: "Back to Today" }));

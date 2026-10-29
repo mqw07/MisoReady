@@ -15,6 +15,7 @@ import {
   createStudyEngine,
   currentCard,
   currentPresentation,
+  displayedRecallCorrect,
   gradeCard,
   rateCard,
   revealCard,
@@ -209,7 +210,12 @@ export function StudyPage() {
         />
       ) : null}
       {session.phase === "done" ? (
-        <SessionSummary kind={session.kind} ratings={session.ratings} pointsEarned={sessionPoints} />
+        <SessionSummary
+          kind={session.kind}
+          ratings={session.ratings}
+          pointsEarned={sessionPoints}
+          recallCorrect={params.mode === "reveal" ? undefined : session.recallCorrect}
+        />
       ) : null}
       {card && (session.phase === "front" || session.phase === "back") ? (
         <div className="flex items-start gap-4">
@@ -241,7 +247,12 @@ export function StudyPage() {
               />
             )}
           </div>
-          <StudyCompanion pose={studyPose(session)} equipped={miso.equipped} />
+          <StudyCompanion
+            pose={studyPose(session)}
+            equipped={miso.equipped}
+            showScore={params.mode !== "reveal"}
+            correctCount={displayedRecallCorrect(session)}
+          />
         </div>
       ) : null}
       {session.phase !== "empty" && sessionPoints > 0 ? (

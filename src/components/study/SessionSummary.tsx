@@ -16,10 +16,12 @@ export function SessionSummary({
   kind,
   ratings,
   pointsEarned = 0,
+  recallCorrect,
 }: {
   kind: SessionKind;
   ratings: readonly ReviewRating[];
   pointsEarned?: number;
+  recallCorrect?: number;
 }) {
   const counts = ratingCounts(ratings);
   return (
@@ -30,6 +32,7 @@ export function SessionSummary({
           ? `${formatCardCount(ratings.length)} practiced. Ratings were recorded. Schedules did not change.`
           : `${formatCardCount(ratings.length)} reviewed. Each rating updated the shared study schedule.`}
         {pointsEarned > 0 ? ` ${formatPoints(pointsEarned)} earned.` : null}
+        {typeof recallCorrect === "number" ? ` ${String(recallCorrect)} correct.` : null}
       </p>
       <ul className="mt-6 grid gap-2 sm:grid-cols-2">
         {(["again", "hard", "good", "easy"] as const).map((rating) => (

@@ -10,6 +10,33 @@ export interface AnswerMatch {
   distance?: number;
 }
 
+/** Requires a space before `(`, so `fork()` and `wait(2)` are not split. */
+const PARENTHETICAL_TERM = /^(.+?)\s+\(([^)]+)\)\s*$/;
+
+export function parentheticalForms(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  const match = PARENTHETICAL_TERM.exec(trimmed);
+  if (!match) return [trimmed];
+  const outside = match[1]?.trim() ?? "";
+  const inside = match[2]?.trim() ?? "";
+  const forms = [trimmed];
+  if (outside && outside !== trimmed) forms.push(outside);
+  if (inside && inside !== trimmed && inside !== outside) forms.push(inside);
+  return forms;
+}
+
+function uniqueForms(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
+}
+
 export function matchAnswer(
   input: string,
   canonical: string,
@@ -25,7 +52,12 @@ export function matchAnswer(
     return { correct: true, matchType: "exact", matchedAnswer: canonical, distance: 0 };
   }
 
-  for (const alias of aliases) {
+  const expandedAliases = uniqueForms([
+    ...parentheticalForms(canonical).slice(1),
+    ...aliases.flatMap((alias) => parentheticalForms(alias)),
+  ]).filter((form) => form !== canonical);
+
+  for (const alias of expandedAliases) {
     const aliasNormalized = normalizeAnswer(alias);
     if (aliasNormalized.length > 0 && user === aliasNormalized) {
       return { correct: true, matchType: "alias", matchedAnswer: alias, distance: 0 };
@@ -33,7 +65,7 @@ export function matchAnswer(
   }
 
   let best: { answer: string; distance: number } | null = null;
-  const candidates = [canonical, ...aliases];
+  const candidates = [canonical, ...expandedAliases];
   for (const answer of candidates) {
     const expected = normalizeAnswer(answer);
     if (expected.length === 0) continue;

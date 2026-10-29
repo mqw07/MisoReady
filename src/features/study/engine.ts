@@ -28,6 +28,8 @@ export interface StudyEngine {
   phase: StudyPhase;
   submitted: string[];
   ratings: ReviewRating[];
+  recallCorrect: number;
+  recallGraded: number;
   answer?: string;
   match?: AnswerMatch;
 }
@@ -49,6 +51,8 @@ export function createStudyEngine(
     phase: queue.length === 0 ? "empty" : "front",
     submitted: [],
     ratings: [],
+    recallCorrect: 0,
+    recallGraded: 0,
   };
 }
 
@@ -58,6 +62,20 @@ export function currentCard(engine: StudyEngine): Flashcard | undefined {
 
 export function currentPresentation(engine: StudyEngine): CardPresentation {
   return engine.presentations[engine.index] ?? "reveal";
+}
+
+export function isRecallPresentation(presentation: CardPresentation): boolean {
+  return presentation === "typed" || presentation === "fillBlank";
+}
+
+export function displayedRecallCorrect(engine: StudyEngine): number {
+  const pending =
+    engine.phase === "back" &&
+    isRecallPresentation(currentPresentation(engine)) &&
+    engine.match?.correct
+      ? 1
+      : 0;
+  return engine.recallCorrect + pending;
 }
 
 export function revealCard(engine: StudyEngine): StudyEngine {
@@ -90,6 +108,7 @@ export function rateCard(
 
   const presentation = currentPresentation(engine);
   const correct = presentation === "reveal" ? rating !== "again" : Boolean(engine.match?.correct);
+  const recall = isRecallPresentation(presentation);
   const submitted = [...engine.submitted, card.id];
   const ratings = [...engine.ratings, rating];
   const nextIndex = engine.index + 1;
@@ -106,6 +125,8 @@ export function rateCard(
       ...engine,
       submitted,
       ratings,
+      recallCorrect: engine.recallCorrect + (recall && correct ? 1 : 0),
+      recallGraded: engine.recallGraded + (recall ? 1 : 0),
       index: done ? engine.index : nextIndex,
       phase: done ? "done" : "front",
       answer: undefined,

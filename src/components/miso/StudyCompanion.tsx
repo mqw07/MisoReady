@@ -12,9 +12,13 @@ const LABELS: Record<MisoPose, string> = {
 export function StudyCompanion({
   pose,
   equipped,
+  showScore = false,
+  correctCount = 0,
 }: {
   pose: MisoPose;
   equipped: Record<string, string | undefined>;
+  showScore?: boolean;
+  correctCount?: number;
 }) {
   return (
     <aside className="hidden w-[6.75rem] shrink-0 sm:block" aria-live="polite">
@@ -25,6 +29,11 @@ export function StudyCompanion({
         idle={pose === "idle"}
         className="miso-react w-full"
       />
+      {showScore ? (
+        <p className="mt-2 text-center text-sm font-bold tabular-nums text-ink">
+          {String(correctCount)} correct
+        </p>
+      ) : null}
       <p className="sr-only">{LABELS[pose]}</p>
     </aside>
   );

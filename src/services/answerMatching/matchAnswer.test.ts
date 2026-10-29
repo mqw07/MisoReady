@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { levenshtein, maxEdits } from "./levenshtein.ts";
-import { matchAnswer } from "./matchAnswer.ts";
+import { matchAnswer, parentheticalForms } from "./matchAnswer.ts";
 import { normalizeAnswer } from "./normalize.ts";
 
 describe("normalizeAnswer", () => {
@@ -86,6 +86,45 @@ describe("matchAnswer", () => {
 
   it("rejects empty input", () => {
     expect(matchAnswer("   ", "fork()")).toEqual({ correct: false, matchType: "none" });
+  });
+
+  it("accepts the full name or abbreviation from a parenthetical term", () => {
+    expect(parentheticalForms("Random Variable (RV)")).toEqual([
+      "Random Variable (RV)",
+      "Random Variable",
+      "RV",
+    ]);
+    expect(matchAnswer("RV", "Random Variable (RV)")).toMatchObject({
+      correct: true,
+      matchType: "alias",
+      matchedAnswer: "RV",
+    });
+    expect(matchAnswer("Random Variable", "Random Variable (RV)")).toMatchObject({
+      correct: true,
+      matchType: "alias",
+      matchedAnswer: "Random Variable",
+    });
+    expect(matchAnswer("Random Variable (RV)", "Random Variable (RV)")).toMatchObject({
+      correct: true,
+      matchType: "exact",
+    });
+    expect(matchAnswer("RV", "RV (Random Variable)")).toMatchObject({
+      correct: true,
+      matchType: "alias",
+      matchedAnswer: "RV",
+    });
+    expect(matchAnswer("Random Variable", "RV (Random Variable)")).toMatchObject({
+      correct: true,
+      matchType: "alias",
+    });
+  });
+
+  it("does not split function-style terms that lack a space before the parenthesis", () => {
+    expect(parentheticalForms("wait(2)")).toEqual(["wait(2)"]);
+    expect(parentheticalForms("fork()")).toEqual(["fork()"]);
+    expect(matchAnswer("wait", "wait(2)")).toMatchObject({ correct: false, matchType: "none" });
+    expect(matchAnswer("2", "wait(2)")).toMatchObject({ correct: false, matchType: "none" });
+    expect(matchAnswer("fork", "fork()")).toMatchObject({ correct: false, matchType: "none" });
   });
 });
 

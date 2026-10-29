@@ -417,6 +417,7 @@ function GenerateCardsForm({
             name="preferFillBlank"
             type="checkbox"
             checked={preferFillBlank}
+            aria-label="Generate fill-in-the-blank prompts"
             onChange={(event) => setPreferFillBlank(event.target.checked)}
             className="mt-1 h-4 w-4 accent-[var(--color-primary)]"
           />

@@ -79,7 +79,7 @@ describe("GenerateCardsDialog PDF notes", () => {
     expect(await screen.findByDisplayValue("_____ creates a new process.")).toBeInTheDocument();
   });
 
-  it("keeps pasted notes as ordinary drafts without preferring blanks", async () => {
+  it("sends fill-in-the-blank for pasted notes unless the checkbox is cleared", async () => {
     generateMock.mockResolvedValue({
       ok: true,
       cards: [{ term: "pipe", description: "Connects processes.", acceptedAnswers: [] }],
@@ -89,10 +89,36 @@ describe("GenerateCardsDialog PDF notes", () => {
 
     await user.type(screen.getByRole("textbox", { name: "Study notes" }), "a pipe connects processes");
     await user.click(screen.getByRole("button", { name: "Generate drafts" }));
+    expect(generateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ content: "a pipe connects processes", preferFillBlank: true }),
+      expect.anything(),
+    );
 
-    expect(generateMock).toHaveBeenCalledTimes(1);
+    generateMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "Back to notes" }));
+    await user.click(screen.getByRole("checkbox", { name: "Generate fill-in-the-blank prompts" }));
+    await user.click(screen.getByRole("button", { name: "Generate drafts" }));
     const [payload] = generateMock.mock.calls[0]!;
     expect(payload).toMatchObject({ content: "a pipe connects processes" });
+    expect(payload).not.toHaveProperty("preferFillBlank");
+  });
+
+  it("does not treat a PDF upload as fill-in-the-blank by itself", async () => {
+    extractMock.mockResolvedValue({ text: "fork creates a child process", truncated: false });
+    generateMock.mockResolvedValue({
+      ok: true,
+      cards: [{ term: "fork()", description: "Creates a new process.", acceptedAnswers: [] }],
+    });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByRole("checkbox", { name: "Generate fill-in-the-blank prompts" }));
+    const file = new File(["%PDF-1.1 lecture notes"], "lecture.pdf", { type: "application/pdf" });
+    await user.upload(screen.getByLabelText("PDF notes"), file);
+    expect(await screen.findByText("Using lecture.pdf")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Generate drafts" }));
+    const [payload] = generateMock.mock.calls[0]!;
+    expect(payload).toMatchObject({ content: "fork creates a child process" });
     expect(payload).not.toHaveProperty("preferFillBlank");
   });
 

@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { emptyAppState } from "../../repositories/schema.ts";
 import type { Flashcard } from "../../types/domain.ts";
 import { insertCard, insertCourse, insertUnit, recordReview } from "../library/mutations.ts";
-import { createStudyEngine, gradeCard, rateCard, ratingCounts, revealCard } from "./engine.ts";
+import {
+  createStudyEngine,
+  displayedRecallCorrect,
+  gradeCard,
+  rateCard,
+  ratingCounts,
+  revealCard,
+} from "./engine.ts";
 import { sessionProgress } from "./session.ts";
 
 const now = new Date("2026-10-29T16:00:00.000Z");
@@ -100,6 +107,27 @@ describe("study engine", () => {
       userAnswer: "Fork()",
       correct: true,
     });
+  });
+
+  it("counts correct typed ratings without counting reveal", () => {
+    let engine = createStudyEngine(twoCards(), new URLSearchParams("scope=due&mode=typed"), now);
+    engine = gradeCard(engine, "Fork()");
+    expect(displayedRecallCorrect(engine)).toBe(1);
+    const first = rateCard(engine, "good");
+    expect(first.engine.recallCorrect).toBe(1);
+    expect(first.engine.recallGraded).toBe(1);
+
+    engine = gradeCard(first.engine, "exec");
+    expect(displayedRecallCorrect(engine)).toBe(2);
+    const second = rateCard(engine, "good");
+    expect(second.engine.recallCorrect).toBe(2);
+    expect(second.engine.recallGraded).toBe(2);
+
+    let reveal = createStudyEngine(twoCards(), new URLSearchParams("scope=due"), now);
+    reveal = revealCard(reveal);
+    const rated = rateCard(reveal, "good");
+    expect(rated.engine.recallCorrect).toBe(0);
+    expect(rated.engine.recallGraded).toBe(0);
   });
 
   it("reports 1-based progress without overflowing the queue", () => {
