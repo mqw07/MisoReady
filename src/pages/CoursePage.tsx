@@ -62,6 +62,7 @@ export function CoursePage() {
         }
       />
       <div className="mb-6 flex flex-wrap gap-2">
+        <ButtonLink to={`/learn?courseId=${course.id}`} variant="secondary">Learn</ButtonLink>
         <ButtonLink to={`/study?courseId=${course.id}&scope=due`} variant={dueCount === 0 ? "secondary" : "primary"}>
           Study due
         </ButtonLink>

@@ -1,3 +1,4 @@
+import { LearnPage } from "./pages/LearnPage.tsx";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppLayout } from "./components/layout/AppLayout.tsx";
 import { LibraryProvider } from "./features/library/LibraryProvider.tsx";
@@ -18,6 +19,7 @@ export function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<TodayPage />} />
+            <Route path="learn" element={<LearnPage />} />
             <Route path="study" element={<StudyPage />} />
             <Route path="miso" element={<MisoPage />} />
             <Route path="shop" element={<ShopPage />} />

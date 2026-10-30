@@ -17,6 +17,7 @@ export interface LibraryValue {
   persistBlocked: boolean;
   persistError: string | null;
   retrySave: () => void;
+  saveLearnSession: (session: AppState["learnSession"]) => void;
   clearStudySession: () => void;
   writeReady: boolean;
   state: AppState;

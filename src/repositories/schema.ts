@@ -1,3 +1,4 @@
+import { learnSchema } from "../features/study/learn.ts";
 import { z } from "zod";
 import type { AppState } from "../types/domain.ts";
 
@@ -80,6 +81,7 @@ const misoStateSchema = z.object({
 });
 
 export const persistedAppStateSchema = z.object({
+  learnSession: learnSchema.optional(),
   studySession: z.object({ key: z.string(), cardIds: z.array(z.string()), reviewIds: z.array(z.string()) }).optional().catch(undefined),
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
   courses: z.array(courseSchema),

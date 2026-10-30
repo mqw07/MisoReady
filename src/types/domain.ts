@@ -1,3 +1,4 @@
+import type { LearnSession } from "../features/study/learn.ts";
 export type ReviewRating = "again" | "hard" | "good" | "easy";
 export type StudyMode = "reveal" | "typed" | "fillBlank" | "mixed";
 
@@ -78,6 +79,7 @@ export interface MisoState {
 }
 
 export interface AppState {
+  learnSession?: LearnSession;
   studySession?: { key: string; cardIds: string[]; reviewIds: string[] };
   schemaVersion: number;
   courses: Course[];

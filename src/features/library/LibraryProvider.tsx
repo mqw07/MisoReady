@@ -89,6 +89,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [persistBlocked, repository],
   );
   const retrySave = useCallback(() => commit(stateRef.current), [commit]);
+  const saveLearnSession = useCallback((session: typeof state.learnSession) => { if (!persistBlocked) commit({ ...stateRef.current, learnSession: session }); }, [commit, persistBlocked]);
   const clearStudySession = useCallback(() => commit({ ...stateRef.current, studySession: undefined }), [commit]);
 
   const createCourse = useCallback(
@@ -259,6 +260,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       writeReady,
       retrySave,
       clearStudySession,
+      saveLearnSession,
       persistBlocked,
       persistError,
       state,
@@ -287,6 +289,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       writeReady,
       retrySave,
       clearStudySession,
+      saveLearnSession,
       persistBlocked,
       persistError,
       state,

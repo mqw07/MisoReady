@@ -1,0 +1,14 @@
+import { describe,it,expect } from 'vitest';
+import { startLearn,submit,question,reconcileLearn,grade,learnSchema } from './learn.ts';
+import { emptyAppState } from '../../repositories/schema.ts';
+import { persistedAppStateSchema } from '../../repositories/schema.ts';
+import type { Flashcard } from '../../types/domain.ts';
+const cards:Flashcard[]=['Alpha','Beta','Gamma','Delta'].map((term,i)=>({id:String(i),term,description:`Definition ${i}`,acceptedAnswers:[],courseId:'course',unitId:'unit',createdAt:'2026-01-01',updatedAt:'2026-01-01',fsrs:{due:'2026-01-01',stability:0,difficulty:0,scheduled_days:0,learning_steps:0,reps:0,lapses:0,state:0}}));
+describe('Learn',()=>{
+ it('progresses through recognition and recall without changing schedules',()=>{let s=startLearn(cards.slice(0,2),'test');for(let i=0;i<20&&s.queue.length;i++){const q=question(s,cards)!;s=submit(s,cards,q.type==='flashcard'?'remembered':q.answers[0]!);}expect(s.queue).toEqual([]);expect(s.progress.every(p=>p.recall===2&&p.recognition===2)).toBe(true);expect(cards[0]!.fsrs.reps).toBe(0);expect(new Set(s.attempts.map(a=>a.id)).size).toBe(s.attempts.length);});
+ it('requeues mistakes after intervening cards and hints do not advance',()=>{let s=startLearn(cards,'test');s.types=['multipleChoice'];s=submit(s,cards,'wrong');expect(s.queue).toEqual(['1','2','0','3']);expect(s.progress[0]!.mistakes).toBe(1);s=submit(s,cards,question(s,cards)!.answers[0]!,true);expect(s.progress[1]!.recognition).toBe(0);});
+ it('supports exact grading, directional answers and one-card fallback',()=>{let s=startLearn(cards.slice(0,1),'test');s.types=['written'];expect(grade(s,cards,'alpha')).toBe(true);s.smart=false;expect(grade(s,cards,'alpha')).toBe(false);s.direction='definition';expect(grade(s,cards,'Definition 0')).toBe(true);expect(grade(s,cards,'Alpha')).toBe(false);});
+ it('invalidates edited and deleted cards and restores committed attempts',()=>{let s=startLearn(cards,'test');s=submit(s,cards,'remembered');const restored=learnSchema.parse(JSON.parse(JSON.stringify(s)));expect(restored).toEqual(s);const edited=[{...cards[0]!,term:'Changed'},cards[2]!];const next=reconcileLearn(s,edited);expect(next.progress.map(p=>p.id).sort()).toEqual(['0','2']);expect(next.progress.find(p=>p.id==='0')!.seen).toBe(false);});
+ it('loads old libraries and persists Learn alongside them',()=>{const old=emptyAppState();expect(persistedAppStateSchema.parse(old).learnSession).toBeUndefined();const s=startLearn(cards,'test');expect(persistedAppStateSchema.parse({...old,learnSession:s}).learnSession).toEqual(s);});
+ it('records an override once and never credits retyping',()=>{let s=startLearn(cards.slice(0,1),'test');s.types=['written'];s=submit(s,cards,'alternate',false,true);expect(s.attempts).toHaveLength(1);expect(s.attempts[0]!.override).toBe(true);expect(s.progress[0]!.recall).toBe(1);});
+});

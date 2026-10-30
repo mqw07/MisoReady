@@ -90,6 +90,7 @@ export function UnitPage() {
         >
           Study due
         </ButtonLink>
+        <ButtonLink to={`/learn?courseId=${course.id}&unitId=${unit.id}`} variant="secondary">Learn</ButtonLink>
         <ButtonLink to={`/study?courseId=${course.id}&unitId=${unit.id}&scope=all`} variant="secondary">
           Study all
         </ButtonLink>
