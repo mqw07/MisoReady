@@ -43,6 +43,11 @@ export function ShopPage() {
       <div className="grid items-start gap-5 lg:grid-cols-5">
         <div className="grid gap-6 lg:col-span-3">
           <p className="text-sm font-bold text-muted">Balance: {formatPoints(progress.points)}</p>
+          {progress.points === 0 ? (
+            <p className="text-sm leading-6 text-muted">
+              Study due cards to earn points. Custom practice does not add to this balance.
+            </p>
+          ) : null}
           {message ? (
             <p role="status" className="text-sm font-bold text-ink">
               {message}

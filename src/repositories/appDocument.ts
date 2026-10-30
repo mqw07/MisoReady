@@ -49,8 +49,29 @@ export function saveAppState(state: AppState, storage: StoragePort): SaveResult 
 export function createAppDocumentRepository(
   storage: StoragePort = getStorage(),
 ): AppDocumentRepository {
+  let baseline: string | null | undefined;
   return {
-    load: () => loadAppState(storage),
-    save: (state) => saveAppState(state, storage),
+    load: () => {
+      try {
+        const result = loadAppState(storage);
+        if (result.status !== "invalid") baseline = storage.getItem(APP_STATE_STORAGE_KEY);
+        return result;
+      } catch (error) {
+        baseline = undefined;
+        return { status: "invalid", state: emptyAppState(), reason: reasonFrom(error), raw: null };
+      }
+    },
+    save: (state) => {
+      try {
+        if (baseline === undefined || storage.getItem(APP_STATE_STORAGE_KEY) !== baseline) {
+          return { status: "error", reason: "Saved data changed in another tab. Reload to use the latest data." };
+        }
+        const result = saveAppState(state, storage);
+        if (result.status === "ok") baseline = JSON.stringify(state);
+        return result;
+      } catch (error) {
+        return { status: "error", reason: reasonFrom(error) };
+      }
+    },
   };
 }

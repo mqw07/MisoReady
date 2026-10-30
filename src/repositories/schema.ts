@@ -53,6 +53,7 @@ const flashcardSchema = z.object({
 });
 
 const reviewRecordSchema = z.object({
+  aiReview: z.object({ correct: z.boolean(), explanation: z.string() }).optional(),
   id: z.string().min(1),
   cardId: z.string().min(1),
   reviewedAt: isoTimestamp,
@@ -79,6 +80,7 @@ const misoStateSchema = z.object({
 });
 
 export const persistedAppStateSchema = z.object({
+  studySession: z.object({ key: z.string(), cardIds: z.array(z.string()), reviewIds: z.array(z.string()) }).optional().catch(undefined),
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
   courses: z.array(courseSchema),
   units: z.array(unitSchema),

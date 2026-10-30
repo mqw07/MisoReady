@@ -26,6 +26,7 @@ export function ModePicker({
             className={[
               "pixel-box pixel-box-sm relative h-9 px-4 text-sm font-bold",
               selected ? "pb-primary text-white" : "pb-surface text-ink",
+              "focus-visible:z-10",
             ].join(" ")}
             onClick={() => onChange(item.mode)}
           >

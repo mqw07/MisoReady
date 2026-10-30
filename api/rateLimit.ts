@@ -3,10 +3,10 @@ const MAX_REQUESTS = 8;
 
 const hits = new Map<string, number[]>();
 
-export function allowRequest(key: string, now: number): boolean {
+export function allowRequest(key: string, now: number, maxRequests = MAX_REQUESTS): boolean {
   const cutoff = now - WINDOW_MS;
   const recent = (hits.get(key) ?? []).filter((stamp) => stamp > cutoff);
-  if (recent.length >= MAX_REQUESTS) {
+  if (recent.length >= maxRequests) {
     hits.set(key, recent);
     return false;
   }

@@ -51,6 +51,7 @@ export interface Flashcard {
 }
 
 export interface ReviewRecord {
+  aiReview?: { correct: boolean; explanation: string };
   id: string;
   cardId: string;
   reviewedAt: string;
@@ -77,6 +78,7 @@ export interface MisoState {
 }
 
 export interface AppState {
+  studySession?: { key: string; cardIds: string[]; reviewIds: string[] };
   schemaVersion: number;
   courses: Course[];
   units: Unit[];

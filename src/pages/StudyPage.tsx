@@ -13,12 +13,14 @@ import { ProgressBar } from "../components/ui/ProgressBar.tsx";
 import { useLibrary } from "../features/library/useLibrary.ts";
 import {
   createStudyEngine,
+  applyAiReview,
   currentCard,
   currentPresentation,
   displayedRecallCorrect,
   gradeCard,
   rateCard,
   revealCard,
+  restoreStudyEngine,
   type StudyEngine,
 } from "../features/study/engine.ts";
 import { parseStudyParams, studySessionKey } from "../features/study/params.ts";
@@ -27,6 +29,7 @@ import { sessionProgress } from "../features/study/session.ts";
 import { usePageTitle } from "../hooks/usePageTitle.ts";
 import type { ReviewRating, StudyMode } from "../types/domain.ts";
 import { formatPoints } from "../utils/format.ts";
+import { reviewAnswer } from "../services/ai/review.ts";
 
 function studyPose(session: StudyEngine): MisoPose {
   if (session.phase === "front") return "studying";
@@ -53,14 +56,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function StudyPage() {
   usePageTitle("Study");
   const [searchParams, setSearchParams] = useSearchParams();
-  const { cards, courses, submitReview, miso } = useLibrary();
+  const { cards, courses, submitReview, miso, state, clearStudySession } = useLibrary();
   const params = parseStudyParams(searchParams);
   const key = studySessionKey(params);
-  const [engine, setEngine] = useState(() => createStudyEngine(cards, searchParams));
+  const [engine, setEngine] = useState(() => restoreStudyEngine(state, searchParams));
   const [ratingBusy, setRatingBusy] = useState(false);
-  const [sessionPoints, setSessionPoints] = useState(0);
+  const [sessionPoints, setSessionPoints] = useState(() => engine.reviewIds.reduce((sum, id) => sum + (state.reviews.find((review) => review.id === id)?.pointsEarned ?? 0), 0));
   const engineRef = useRef(engine);
   const submitRef = useRef(submitReview);
+  const aiRequestRef = useRef<AbortController | null>(null);
+  useEffect(() => () => aiRequestRef.current?.abort(), [key]);
 
   const session = engine.key === key ? engine : createStudyEngine(cards, searchParams);
   if (engine.key !== key) {
@@ -87,20 +92,48 @@ export function StudyPage() {
     commitEngine(gradeCard(engineRef.current, input));
   }
 
+  async function handleAiReview() {
+    const current = engineRef.current;
+    const card = currentCard(current);
+    if (!card || current.phase !== "back" || !current.answer?.trim() || current.aiPending || current.aiReview || currentPresentation(current) === "reveal") return;
+    aiRequestRef.current?.abort();
+    const controller = new AbortController();
+    aiRequestRef.current = controller;
+    const pending = { ...current, aiPending: true, aiError: undefined };
+    commitEngine(pending);
+    const answers = recallAnswers(card, currentPresentation(current));
+    try {
+      const verdict = await reviewAnswer({
+        prompt: recallPrompt(card, currentPresentation(current)), context: card.description,
+        expected: answers[0] ?? card.term, aliases: answers.slice(1), answer: current.answer,
+      }, AbortSignal.any([controller.signal, AbortSignal.timeout(35_000)]));
+      if (engineRef.current === pending && !controller.signal.aborted) commitEngine(applyAiReview(pending, verdict));
+    } catch (error) {
+      if (engineRef.current === pending && !controller.signal.aborted) commitEngine({
+        ...pending, aiPending: false,
+        aiError: error instanceof Error ? error.message : "AI review failed. Retry or continue with your rating.",
+      });
+    }
+  }
+
   function handleRate(rating: ReviewRating) {
     const result = rateCard(engineRef.current, rating);
     if (!result.attempt) return;
     setRatingBusy(true);
-    commitEngine(result.engine);
     const review = submitRef.current({
+      aiReview: result.attempt.aiReview,
       cardId: result.attempt.cardId,
       rating: result.attempt.rating,
       mode: result.attempt.mode,
       reschedule: result.engine.kind === "scheduled",
       userAnswer: result.attempt.userAnswer,
       correct: result.attempt.correct,
+      session: { key: result.engine.key, cardIds: result.engine.queue.map((card) => card.id), reviewIds: engineRef.current.reviewIds },
     });
-    if (review) setSessionPoints((current) => current + review.pointsEarned);
+    if (review) {
+      commitEngine({ ...result.engine, reviewIds: [...engineRef.current.reviewIds, review.id] });
+      setSessionPoints((current) => current + review.pointsEarned);
+    }
     setRatingBusy(false);
   }
 
@@ -190,6 +223,8 @@ export function StudyPage() {
       />
       <div className="mb-4">
         <ModePicker value={params.mode} onChange={handleMode} />
+        <button type="button" className="mt-3 text-sm underline" onClick={() => { clearStudySession(); commitEngine(createStudyEngine(cards, searchParams)); setSessionPoints(0); }}>Start a new session</button>
+        <p className="mt-2 text-sm text-muted">Rated cards resume after reload. Practice leaves due dates unchanged. Learning cards may be due again in minutes.</p>
       </div>
       {session.phase === "empty" ? (
         <EmptyState
@@ -235,13 +270,17 @@ export function StudyPage() {
               />
             ) : (
               <RecallCard
-                key={card.id}
+                key={`${session.key}:${card.id}`}
                 prompt={recallPrompt(card, presentation)}
                 expected={answers[0] ?? card.term}
                 aliases={answers.slice(1)}
                 match={session.match}
                 submittedAnswer={session.answer}
-                ratingDisabled={ratingBusy}
+                ratingDisabled={ratingBusy || Boolean(session.aiPending)}
+                aiPending={session.aiPending}
+                aiReview={session.aiReview}
+                aiError={session.aiError}
+                onAiReview={handleAiReview}
                 onSubmit={handleGrade}
                 onRate={handleRate}
               />

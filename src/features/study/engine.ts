@@ -1,5 +1,5 @@
 import { matchAnswer, type AnswerMatch } from "../../services/answerMatching/matchAnswer.ts";
-import type { Flashcard, ReviewRating } from "../../types/domain.ts";
+import type { AppState, Flashcard, ReviewRating } from "../../types/domain.ts";
 import { parseStudyParams, studySessionKey, type SessionKind, type StudyParams } from "./params.ts";
 import {
   presentationsForQueue,
@@ -7,10 +7,12 @@ import {
   type CardPresentation,
 } from "./presentation.ts";
 import { selectStudyCards } from "./session.ts";
+import type { ReviewVerdict } from "../../services/ai/review.ts";
 
 export type StudyPhase = "front" | "back" | "done" | "empty";
 
 export interface StudyAttempt {
+  aiReview?: ReviewVerdict;
   cardId: string;
   rating: ReviewRating;
   mode: CardPresentation;
@@ -19,6 +21,10 @@ export interface StudyAttempt {
 }
 
 export interface StudyEngine {
+  aiReview?: ReviewVerdict;
+  aiPending?: boolean;
+  aiError?: string;
+  reviewIds: string[];
   key: string;
   params: StudyParams;
   kind: SessionKind;
@@ -42,6 +48,7 @@ export function createStudyEngine(
   const params = parseStudyParams(search);
   const queue = selectStudyCards(cards, params, now);
   return {
+    reviewIds: [],
     key: studySessionKey(params),
     params,
     kind: params.kind,
@@ -53,6 +60,30 @@ export function createStudyEngine(
     ratings: [],
     recallCorrect: 0,
     recallGraded: 0,
+  };
+}
+
+/** Restore only committed ratings; an unfinished answer is safe to enter again. */
+export function restoreStudyEngine(state: AppState, search: URLSearchParams): StudyEngine {
+  const fresh = createStudyEngine(state.cards, search);
+  const saved = state.studySession;
+  if (!saved || saved.key !== fresh.key) return fresh;
+  if (new Set(saved.cardIds).size !== saved.cardIds.length || new Set(saved.reviewIds).size !== saved.reviewIds.length) return fresh;
+  const queue = saved.cardIds.map((id) => state.cards.find((card) => card.id === id));
+  const reviews = saved.reviewIds.map((id) => state.reviews.find((review) => review.id === id));
+  // Deleted cards or missing history invalidate the checkpoint, never the library.
+  if (queue.some((card) => !card) || reviews.some((review, index) => !review || review.cardId !== saved.cardIds[index])) return fresh;
+  const cards = queue as Flashcard[];
+  const records = reviews as AppState["reviews"];
+  if (records.length > cards.length) return fresh;
+  return {
+    ...fresh, queue: cards, presentations: presentationsForQueue(cards, fresh.params.mode),
+    reviewIds: saved.reviewIds, submitted: records.map((review) => review.cardId),
+    ratings: records.map((review) => review.rating),
+    index: Math.min(records.length, Math.max(0, cards.length - 1)),
+    phase: cards.length === 0 ? "empty" : records.length === cards.length ? "done" : "front",
+    recallCorrect: records.filter((review) => review.mode !== "reveal" && review.correct).length,
+    recallGraded: records.filter((review) => review.mode !== "reveal").length,
   };
 }
 
@@ -101,7 +132,7 @@ export function rateCard(
   engine: StudyEngine,
   rating: ReviewRating,
 ): { engine: StudyEngine; attempt: StudyAttempt | null } {
-  if (engine.phase !== "back") return { engine, attempt: null };
+  if (engine.phase !== "back" || engine.aiPending) return { engine, attempt: null };
   const card = engine.queue[engine.index];
   if (!card) return { engine, attempt: null };
   if (engine.submitted.includes(card.id)) return { engine, attempt: null };
@@ -115,6 +146,7 @@ export function rateCard(
   const done = nextIndex >= engine.queue.length;
   return {
     attempt: {
+      aiReview: engine.aiReview,
       cardId: card.id,
       rating,
       mode: presentation,
@@ -131,7 +163,18 @@ export function rateCard(
       phase: done ? "done" : "front",
       answer: undefined,
       match: undefined,
+      aiReview: undefined,
+      aiPending: false,
+      aiError: undefined,
     },
+  };
+}
+
+export function applyAiReview(engine: StudyEngine, verdict: ReviewVerdict): StudyEngine {
+  if (engine.phase !== "back" || !engine.match || currentPresentation(engine) === "reveal") return engine;
+  return {
+    ...engine, aiPending: false, aiError: undefined, aiReview: verdict,
+    match: verdict.correct ? { correct: true, matchType: "ai" } : engine.match,
   };
 }
 

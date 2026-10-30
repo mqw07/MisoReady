@@ -1,7 +1,7 @@
 import { levenshtein, maxEdits } from "./levenshtein.ts";
 import { normalizeAnswer } from "./normalize.ts";
 
-export type MatchType = "exact" | "alias" | "fuzzy" | "none";
+export type MatchType = "exact" | "alias" | "fuzzy" | "none" | "ai";
 
 export interface AnswerMatch {
   correct: boolean;

@@ -16,6 +16,9 @@ import type {
 export interface LibraryValue {
   persistBlocked: boolean;
   persistError: string | null;
+  retrySave: () => void;
+  clearStudySession: () => void;
+  writeReady: boolean;
   state: AppState;
   courses: Course[];
   units: Unit[];
@@ -37,10 +40,12 @@ export interface LibraryValue {
   equipCosmetic: (cosmeticId: string) => ShopError | null;
   unequipCosmetic: (category: CosmeticCategory) => void;
   submitReview: (input: {
+    aiReview?: ReviewRecord["aiReview"];
     cardId: string;
     rating: ReviewRating;
     mode: StudyMode;
     reschedule: boolean;
+    session?: { key: string; cardIds: string[]; reviewIds: string[] };
     userAnswer?: string;
     correct?: boolean;
   }) => ReviewRecord | null;

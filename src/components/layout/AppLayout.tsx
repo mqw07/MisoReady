@@ -13,7 +13,7 @@ export function AppLayout() {
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { createCourse, persistBlocked, persistError } = useLibrary();
+  const { createCourse, persistBlocked, persistError, retrySave, writeReady } = useLibrary();
 
   if (menuPath !== null && menuPath !== location.pathname) {
     setMenuPath(null);
@@ -39,7 +39,8 @@ export function AppLayout() {
         Skip to content
       </a>
 
-      <div className="flex min-w-0 flex-1" inert={mobileOpen ? true : undefined}>
+      {!writeReady ? <p role="status" className="absolute top-4 left-4 z-50 bg-surface p-4">{persistError ?? "Miso is open in another tab. Close that tab to continue here."}</p> : null}
+      <div className="flex min-w-0 flex-1" inert={mobileOpen || !writeReady ? true : undefined}>
         <aside
           className={`hidden h-full shrink-0 flex-col border-r-[3px] border-line bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex ${
             collapsed ? "w-20" : "w-[224px]"
@@ -74,10 +75,11 @@ export function AppLayout() {
                 <p role="alert" className="mb-6 text-sm font-bold text-danger">
                   {persistBlocked
                     ? "Saved study data could not be read. This session will not overwrite it."
-                    : `Miso could not save this change. ${persistError}`}
+                    : `Progress is only in this tab. Keep it open and retry saving. ${persistError}`}
+                  {!persistBlocked ? <button type="button" onClick={retrySave} className="ml-3 underline">Retry saving</button> : null}
                 </p>
               ) : null}
-              <Outlet />
+              {writeReady ? <Outlet /> : null}
             </div>
           </main>
         </div>

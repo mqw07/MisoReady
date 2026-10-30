@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createAppDocumentRepository } from "../../repositories/appDocument.ts";
 import { getStorage } from "../../repositories/storage.ts";
 import type { CosmeticCategory } from "../../services/gamification/catalog.ts";
@@ -7,7 +7,7 @@ import {
   purchaseCosmetic,
   unequipCategory,
 } from "../../services/gamification/shop.ts";
-import type { CardContent, ReviewRating, StudyMode } from "../../types/domain.ts";
+import type { CardContent, ReviewRating, ReviewRecord, StudyMode } from "../../types/domain.ts";
 import { LibraryContext } from "./libraryContext.ts";
 import {
   deleteCard as removeCard,
@@ -28,23 +28,68 @@ import {
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const repository = useMemo(() => createAppDocumentRepository(getStorage()), []);
   const loaded = useMemo(() => repository.load(), [repository]);
-  const persistBlocked = loaded.status === "invalid";
+  const [persistBlocked, setPersistBlocked] = useState(loaded.status === "invalid");
   const [state, setState] = useState(loaded.state);
   const [persistError, setPersistError] = useState<string | null>(
     loaded.status === "invalid" ? loaded.reason : null,
   );
   const stateRef = useRef(loaded.state);
+  const [writeReady, setWriteReady] = useState(false);
+  const ownsLock = useRef(false);
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    if (!navigator.locks) {
+      queueMicrotask(() => setPersistError("This browser cannot safely coordinate saved data. Open Miso in a current browser using HTTPS."));
+      return;
+    }
+    const controller = new AbortController();
+    let release: (() => void) | undefined;
+    // A single writer prevents the read/check/write race across browser tabs.
+    void navigator.locks.request("miso-library-writer", { signal: controller.signal }, async () => {
+      if (controller.signal.aborted) return;
+      const latest = repository.load();
+      setPersistBlocked(latest.status === "invalid");
+      if (latest.status === "invalid") {
+        setPersistError(latest.reason);
+      }
+      stateRef.current = latest.state;
+      setState(latest.state);
+      ownsLock.current = true;
+      setWriteReady(true);
+      await new Promise<void>((resolve) => { release = resolve; });
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setPersistError(String(error));
+    });
+    return () => {
+      ownsLock.current = false;
+      controller.abort();
+      release?.();
+    };
+  }, [repository]);
+
+  useEffect(() => {
+    function beforeUnload(event: BeforeUnloadEvent) {
+      if (dirty.current) { event.preventDefault(); event.returnValue = ""; }
+    }
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, []);
 
   const commit = useCallback(
     (next: typeof state) => {
+      if (!ownsLock.current) return;
       stateRef.current = next;
       setState(next);
       if (persistBlocked) return;
       const result = repository.save(next);
+      dirty.current = result.status === "error";
       setPersistError(result.status === "error" ? result.reason : null);
     },
     [persistBlocked, repository],
   );
+  const retrySave = useCallback(() => commit(stateRef.current), [commit]);
+  const clearStudySession = useCallback(() => commit({ ...stateRef.current, studySession: undefined }), [commit]);
 
   const createCourse = useCallback(
     (name: string) => {
@@ -191,23 +236,29 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const submitReview = useCallback(
     (input: {
+      aiReview?: ReviewRecord["aiReview"];
       cardId: string;
       rating: ReviewRating;
       mode: StudyMode;
       reschedule: boolean;
+      session?: { key: string; cardIds: string[]; reviewIds: string[] };
       userAnswer?: string;
       correct?: boolean;
     }) => {
+      if (!ownsLock.current || persistBlocked) return null;
       const result = recordReview(stateRef.current, input);
       if (!result) return null;
       commit(result.state);
       return result.review;
     },
-    [commit],
+    [commit, persistBlocked],
   );
 
   const value = useMemo(
     () => ({
+      writeReady,
+      retrySave,
+      clearStudySession,
       persistBlocked,
       persistError,
       state,
@@ -233,6 +284,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       submitReview,
     }),
     [
+      writeReady,
+      retrySave,
+      clearStudySession,
       persistBlocked,
       persistError,
       state,

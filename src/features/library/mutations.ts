@@ -264,10 +264,12 @@ export function unitDeleteCounts(state: AppState, unitId: string): { cards: numb
 export function recordReview(
   state: AppState,
   input: {
+    aiReview?: ReviewRecord["aiReview"];
     cardId: string;
     rating: ReviewRating;
     mode: StudyMode;
     reschedule: boolean;
+    session?: { key: string; cardIds: string[]; reviewIds: string[] };
     userAnswer?: string;
     correct?: boolean;
   },
@@ -297,6 +299,7 @@ export function recordReview(
     : current;
 
   const review: ReviewRecord = {
+    aiReview: input.aiReview,
     id: nextId(clock),
     cardId: current.id,
     reviewedAt: at,
@@ -315,6 +318,7 @@ export function recordReview(
       ...state,
       cards,
       reviews: [...state.reviews, review],
+      studySession: input.session ? { ...input.session, reviewIds: [...input.session.reviewIds, review.id] } : state.studySession,
       progress: award.progress,
     },
     review,

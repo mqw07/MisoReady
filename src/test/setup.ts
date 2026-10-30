@@ -2,6 +2,26 @@ import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach } from "vitest";
 
+// Deterministic single-writer handoff matching the browser Web Locks lifecycle.
+let writerHeld = false;
+const waitingWriters: (() => void)[] = [];
+Object.defineProperty(navigator, "locks", { configurable: true, value: {
+  request(_name: string, options: { signal: AbortSignal }, callback: () => Promise<void>) {
+    return new Promise<void>((resolve, reject) => {
+      const run = () => {
+        if (options.signal.aborted) { resolve(); return; }
+        writerHeld = true;
+        void callback().then(resolve, reject).finally(() => {
+          writerHeld = false;
+          waitingWriters.shift()?.();
+        });
+      };
+      if (writerHeld) waitingWriters.push(run);
+      else run();
+    });
+  },
+} });
+
 afterEach(() => {
   cleanup();
   window.localStorage.clear();

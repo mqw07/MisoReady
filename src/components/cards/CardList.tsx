@@ -27,6 +27,7 @@ export function CardList({
                 <p className="mt-1 text-sm leading-6 text-muted">{card.description}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge>{isCardDue(card) ? "Due" : "Scheduled"}</Badge>
+                  {card.fsrs.last_review ? <Badge>Reviewed {new Date(card.fsrs.last_review).toLocaleString()}</Badge> : null}
                   {card.acceptedAnswers.length > 0 ? (
                     <Badge>
                       {card.acceptedAnswers.length === 1
@@ -36,6 +37,7 @@ export function CardList({
                   ) : null}
                   {card.fillBlank ? <Badge>Fill-in-the-blank</Badge> : null}
                 </div>
+                <p className="mt-2 text-xs text-muted">Next review: {new Date(card.fsrs.due).toLocaleString()}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="secondary" aria-label={`Edit ${card.term}`} onClick={() => onEdit(card)}>

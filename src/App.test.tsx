@@ -77,6 +77,8 @@ describe("Miso shell", () => {
     await user.click(screen.getByRole("link", { name: "Stats" }));
     expect(screen.getByRole("heading", { level: 1, name: "Stats" })).toBeInTheDocument();
     expect(screen.getByText("No reviews yet")).toBeInTheDocument();
+    expect(screen.getAllByText("0 points").length).toBeGreaterThan(0);
+    expect(screen.getByText("Study a due card to start these counts. Opening Miso does not add a review.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Settings" }));
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
@@ -118,7 +120,7 @@ describe("Miso shell", () => {
     render(<App />);
 
     expect(screen.getAllByRole("link", { name: "CSC209" }).length).toBeGreaterThan(0);
-    expect(screen.getByText("1 card is waiting.")).toBeInTheDocument();
+    expect(await screen.findByText("1 card is waiting.")).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: "CSC209" })[0]!);
     expect(screen.getByRole("heading", { level: 1, name: "CSC209" })).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -260,6 +262,11 @@ describe("Miso shell", () => {
     await user.click(screen.getByRole("link", { name: "Back to Today" }));
     expect(screen.getByText("No cards are waiting.")).toBeInTheDocument();
     expect(screen.getAllByText(/1-day streak/).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("link", { name: "Stats" }));
+    expect(screen.getByText("Reviews today").closest("section")).toHaveTextContent("1");
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("Accuracy").closest("section")).not.toHaveTextContent("No reviews yet");
   });
 
   it("grades a fill-in-the-blank from a stored prompt", async () => {
@@ -362,6 +369,14 @@ describe("Miso shell", () => {
     );
     await user.click(screen.getByRole("button", { name: "Generate drafts" }));
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/generate",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.not.stringMatching(/sk-|apiKey/),
+      }),
+    );
+
     expect(await screen.findByText("Draft 1 of 2")).toBeInTheDocument();
     const termFields = screen.getAllByRole("textbox", { name: "Term" });
     await user.clear(termFields[0]!);
@@ -402,5 +417,104 @@ describe("Miso shell", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("Add a card yourself, or generate editable drafts from notes.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "fork()" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a second course separate in the sidebar", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await createCourseAndUnit(user);
+    await user.click(screen.getByRole("button", { name: "New course" }));
+    await user.type(screen.getByRole("textbox", { name: "Course name" }), "CSC369");
+    await user.click(screen.getByRole("button", { name: "Create course" }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "CSC369" })).toBeInTheDocument();
+    expect(screen.getByText("No units yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "CSC209" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Processes" }).length).toBeGreaterThan(0);
+  });
+
+  it("completes a scheduled reveal session from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await createCourseAndUnit(user);
+    await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Add card" }));
+    await user.type(screen.getByRole("textbox", { name: "Term" }), "fork()");
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "Creates a new process.");
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    await user.click(screen.getByRole("link", { name: "Study due" }));
+    await user.keyboard(" ");
+    expect(screen.getByText("fork()")).toBeInTheDocument();
+    await user.keyboard("3");
+    expect(screen.getByRole("heading", { name: "Session complete" })).toBeInTheDocument();
+  });
+
+  it("accepts a conservative typo and rejects a short technical token", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await createCourseAndUnit(user);
+    await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Add card" }));
+    await user.type(screen.getByRole("textbox", { name: "Term" }), "process");
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "A running program.");
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    await user.click(screen.getByRole("link", { name: "Study due" }));
+    await user.click(screen.getByRole("button", { name: "Type" }));
+    await user.type(screen.getByRole("textbox", { name: "Your answer" }), "proces");
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByText("Correct")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Good, shortcut 3/ }));
+
+    await user.click(screen.getByRole("link", { name: "Back to Today" }));
+    await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Add card" }));
+    await user.type(screen.getByRole("textbox", { name: "Term" }), "CPU");
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "Central processing unit.");
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    await user.click(screen.getByRole("link", { name: "Study due" }));
+    await user.click(screen.getByRole("button", { name: "Type" }));
+    await user.type(screen.getByRole("textbox", { name: "Your answer" }), "GPU");
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByText("Incorrect")).toBeInTheDocument();
+    expect(screen.getByText("CPU")).toBeInTheDocument();
+  });
+
+  it("uses mixed mode without creating a second schedule", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await createCourseAndUnit(user);
+    await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Add card" }));
+    await user.type(screen.getByRole("textbox", { name: "Term" }), "fork()");
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "Creates a new process.");
+    await user.type(screen.getByRole("textbox", { name: "Fill-in-the-blank prompt" }), "_____ creates a new process.");
+    await user.type(screen.getByRole("textbox", { name: "Fill-in-the-blank answers" }), "fork()");
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+    await user.click(screen.getByRole("button", { name: "Add card" }));
+    await user.type(screen.getByRole("textbox", { name: "Term" }), "exec");
+    await user.type(screen.getByRole("textbox", { name: "Description" }), "Replaces the process image.");
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    await user.click(screen.getByRole("link", { name: "Study due" }));
+    await user.click(screen.getByRole("button", { name: "Mixed" }));
+    expect(screen.getByRole("button", { name: "Show answer" })).toBeInTheDocument();
+    await user.keyboard(" ");
+    await user.keyboard("3");
+
+    await user.type(screen.getByRole("textbox", { name: "Your answer" }), "exec");
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByText("Correct")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Good, shortcut 3/ }));
+    expect(screen.getByRole("heading", { name: "Session complete" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "Back to Today" }));
+    expect(screen.getByText("No cards are waiting.")).toBeInTheDocument();
   });
 });
