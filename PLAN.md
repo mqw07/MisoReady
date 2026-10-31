@@ -1,5 +1,24 @@
 # PLAN.md --- Miso AI Flashcard App
 
+## Learn input-mode repair (October 31, 2026)
+
+Plan: remove multiple choice from active formats; prioritize selected recall
+formats immediately and rotate per card so typing does not hide fill-in-the-blank;
+support stored/derived blanks and a definition-based local fallback; retain
+deterministic grading, progress persistence and practice-only scheduling behavior.
+Migrate legacy multiple-choice settings without rejecting the library or deleting
+attempt history. Verify new sessions, mixed selections, settings changes, grading,
+and reload/resume through domain and UI integration tests.
+
+Implemented: input-first, per-card format rotation; typing and blanks enabled by
+default with optional flashcards/true-false; multiple choice and its hint UI
+removed; stored/derived/fallback blank inputs; Enter submission, focus, feedback,
+corrective retyping and settings validation. Legacy choice-only sessions migrate
+to typing with their historical attempts retained. Settings changes and course/unit
+navigation use the correct session. Full suite: 182 tests pass; typecheck/lint/build
+pass. UI integration coverage uses the real library provider and repository,
+including reload recovery and unchanged cards, review schedules, and rewards.
+
 ## Goal
 
 Build the Miso MVP as a reliable vertical learning loop:

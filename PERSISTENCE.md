@@ -31,6 +31,18 @@ checkpoint without clearing reviews. A deleted card or missing review invalidate
 only the checkpoint. One checkpoint is retained; studying another scope or mode
 can replace it when its first rating is submitted.
 
+## Learn format compatibility
+
+Learn checkpoints retain historical multiple-choice attempts, but remove that
+format from active selections on load. Choice-only selections become typing;
+previous recognition counters/history remain, while cards lacking typed recall
+mastery are queued again. Mixed selections retain their supported formats. This
+field-level compatibility migration keeps schema-v1 libraries readable without
+wiping cards or progress. New sessions default to typing and fill-in-the-blank.
+Committed attempts determine the next format per card, so reload resumes that
+format. Unsubmitted answers are entered again. Learn remains practice only and
+does not write FSRS schedules, review records, points, or streak credit.
+
 ## Future Postgres adapter
 
 Keep storage access in repositories and domain transitions in services/mutations.
