@@ -44,14 +44,14 @@ describe("generation operations", () => {
     expect(body).toMatchObject({ code: "INVALID_CONCEPTS", stage: "extractConcepts" });
     expect(JSON.stringify(body)).not.toContain("PRIVATE NOTES");
   });
-  it("accepts missing optional aliases and a different underscore width while preserving the concept", async () => {
+  it("accepts missing optional aliases and derives a blank for the concept", async () => {
     const response = await handleGenerate(request({ operation: "generateConcept", concept, preferFillBlank: true }), {
       env, fetch: model({ cards: [{ term: "CPU", definition: "Runs instructions.",
         fillBlank: { prompt: "___ runs instructions.", acceptedAnswers: ["CPU"] } }] }),
     });
     expect(response.status).toBe(200);
     expect((await response.json()).cards[0]).toMatchObject({ term: "CPU", description: "Runs instructions.",
-      acceptedAnswers: [], fillBlank: { prompt: "_____ runs instructions." } });
+      acceptedAnswers: [], fillBlank: { prompt: "_____ — Runs instructions." } });
   });
   it("distinguishes truncated output from refused content", async () => {
     const input = { operation: "extractConcepts", content: "continuous random variables" };
@@ -68,7 +68,45 @@ describe("generation operations", () => {
       fillBlank: { prompt: "_____ runs instructions.", acceptedAnswers: ["CPU"] } };
     expect((await handleGenerate(request(input), { env, fetch: model({ cards: [card] }) })).status).toBe(200);
     expect((await handleGenerate(request(input), { env, fetch: model({ cards: [{ ...card, term: "GPU" }] }) })).status).toBe(502);
-    expect((await handleGenerate(request(input), { env, fetch: model({ cards: [{ ...card, fillBlank: undefined }] }) })).status).toBe(502);
+    const derived = await handleGenerate(request(input), { env, fetch: model({ cards: [{ ...card, fillBlank: undefined }] }) });
+    expect(derived.status).toBe(200);
+    expect((await derived.json()).cards[0].fillBlank).toEqual({ prompt: "_____ — Runs instructions.", acceptedAnswers: ["CPU"] });
     expect((await handleGenerate(request(input), { env, fetch: model({ cards: [card] }, "length") })).status).toBe(502);
+  });
+  it("owns identity and answers when the provider returns only a definition and cloze", async () => {
+    const response = await handleGenerate(request({ operation: "generateConcept", concept, preferFillBlank: true }), {
+      env, fetch: model({ definition: "The CPU runs instructions.", termSentence: "The CPU runs instructions." }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).cards[0]).toEqual({ term: "CPU", description: "The CPU runs instructions.",
+      acceptedAnswers: [], fillBlank: { prompt: "The _____ runs instructions.", acceptedAnswers: ["CPU"] } });
+  });
+  it("normalizes term casing and rebuilds a malformed blank from the validated definition", async () => {
+    const response = await handleGenerate(request({ operation: "generateConcept", concept, preferFillBlank: true }), {
+      env, fetch: model({ cards: [{ term: "cpu", description: "The CPU runs instructions.",
+        fillBlank: { prompt: "No blank here", acceptedAnswers: ["cpu"] } }] }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).cards[0]).toMatchObject({ term: "CPU",
+      fillBlank: { prompt: "The _____ runs instructions.", acceptedAnswers: ["CPU"] } });
+  });
+  it("identifies missing definitions and wrong concepts without returning note content", async () => {
+    const input = { operation: "generateConcept", concept, preferFillBlank: true };
+    const missing = await handleGenerate(request(input), { env, fetch: model({ cloze: "[ANSWER] runs instructions." }) });
+    expect(missing.status).toBe(502);
+    expect(await missing.json()).toMatchObject({ reason: "MISSING_OR_OVERSIZED_DEFINITION" });
+    const wrong = await handleGenerate(request(input), { env, fetch: model({ cards: [{ term: "GPU", description: "Different concept." }] }) });
+    expect(await wrong.json()).toMatchObject({ reason: "WRONG_CONCEPT" });
+  });
+  it("does not pair a model-selected numeric blank with the concept answer", async () => {
+    const probability = { term: "Uniform distribution", scope: "probability", aliases: [], evidence: "The density is constant on an interval." };
+    const response = await handleGenerate(request({ operation: "generateConcept", concept: probability, preferFillBlank: true }), {
+      env, fetch: model({ definition: "A uniform distribution has constant density on an interval.",
+        cloze: "The constant density is [ANSWER]." }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).cards[0].fillBlank).toEqual({
+      prompt: "A _____ has constant density on an interval.", acceptedAnswers: ["Uniform distribution"],
+    });
   });
 });

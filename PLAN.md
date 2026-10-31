@@ -385,3 +385,19 @@ The first complete product milestone adds:
   text through an entirely local mocked-provider flow. Live generation of the
   user's PDF was not performed because automatic approval review rejected that
   document transfer. Full suite: 164 tests pass; typecheck/lint/build pass.
+
+### Card-writing contract repair
+
+- Card writing now asks only for a definition and an optional complete sentence
+  containing the concept term. The application preserves concept identity and
+  aliases, and constructs the blank by removing the actual whole term locally.
+  It no longer requires an exact model echo of term/answer metadata.
+- A live synthetic probability check revealed that model-selected blanks could
+  hide a numeric density while the stored answer was the concept name. Such blank
+  output is now ignored; missing/unusable sentences fall back to the definition.
+- Harmless capitalization/known-alias variations in legacy card envelopes remain
+  accepted, while wrong concepts, absent definitions, and multiple cards are rejected.
+  Failure diagnostics now include validation reasons without note contents.
+- Live OpenAI calls with authored uniform-distribution and continuous-random-variable
+  examples returned valid cards and correctly aligned blanks. No user PDF was sent.
+  This server-only change preserves same-dialog extraction checkpoints on retry.

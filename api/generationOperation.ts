@@ -1,5 +1,6 @@
-import { extractJsonPayload, readModelText, sanitizeGeneratedCard } from "../src/services/ai/contract.ts";
-import { conceptCardSchema, operationSchema, resolveExtractedConcepts, sourcePassages, validBlank } from "../src/services/ai/generationContract.ts";
+import { extractJsonPayload, readModelText } from "../src/services/ai/contract.ts";
+import { operationSchema, resolveExtractedConcepts, sourcePassages } from "../src/services/ai/generationContract.ts";
+import { CardValidationError, resolveConceptCard } from "./conceptCard.ts";
 import type { GenerateHandlerOptions } from "./generate.ts";
 import { allowRequest, clientKey } from "./rateLimit.ts";
 
@@ -15,7 +16,7 @@ export async function handleGenerationOperation(request: Request, payload: unkno
   const input = parsed.data;
   const instruction = input.operation === "extractConcepts"
     ? 'Identify every independently testable key term or concept in the supplied numbered source passages. Return {"concepts":[{"term":"...","scope":"subject or meaning","aliases":[],"evidenceId":"p1"}]}. evidenceId MUST be an ID from the supplied passages that supports the concept. Do not transcribe quotations or reformat mathematical evidence. No target count. Merge repeated mentions of the same meaning. Exclude administrative text. Empty concepts is valid for non-study material. Keep terms and scope under 200 characters and aliases optional.'
-    : `Write exactly one source-grounded flashcard for the supplied concept. Return {"cards":[{"term":"short answer","description":"clear definition","acceptedAnswers":[],"fillBlank":{"prompt":"sentence with one _____ blank","acceptedAnswers":["short answer"]}}]}. Use the supplied term as the card term. ${input.preferFillBlank ? "A fillBlank with exactly one _____ blank is required; its acceptedAnswers must include the term." : "fillBlank may be omitted."} Do not invent facts outside the evidence.`;
+    : `Write a source-grounded definition for the supplied concept. Return {"definition":"a clear definition under 600 characters"${input.preferFillBlank ? ',"termSentence":"a complete explanatory sentence containing the supplied term verbatim, under 600 characters"' : ""}}. The application owns the term and accepted answers: do not return or rename them. Do not insert blanks or placeholders. The application will replace the supplied term with a blank itself. Do not invent facts outside the evidence.`;
   try {
     const base = (env.LLM_API_URL?.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
     const response = await (options.fetch ?? fetch)(`${base}/chat/completions`, {
@@ -37,21 +38,7 @@ export async function handleGenerationOperation(request: Request, payload: unkno
     if (input.operation === "extractConcepts") {
       return Response.json(resolveExtractedConcepts(output, input.content));
     }
-    // Normalize the harmless response variations already accepted by the legacy
-    // generator, while still requiring a single card for the requested concept.
-    const raw = output as { cards?: unknown[] } | null;
-    if (!Array.isArray(raw?.cards) || raw.cards.length !== 1) throw new Error("Expected one card");
-    const sanitized = sanitizeGeneratedCard(raw.cards[0]);
-    if (sanitized?.fillBlank) {
-      const runs = sanitized.fillBlank.prompt.match(/_{2,}/g) ?? [];
-      if (runs.length === 1) sanitized.fillBlank.prompt = sanitized.fillBlank.prompt.replace(/_{2,}/, "_____");
-    }
-    const generated = conceptCardSchema.parse({ cards: [sanitized] });
-    const card = generated.cards[0]!;
-    if (card.term !== input.concept.term) throw new Error("Wrong concept");
-    if (input.preferFillBlank && (!card.fillBlank || !validBlank(card.fillBlank.prompt) ||
-      !card.fillBlank.acceptedAnswers.includes(card.term))) throw new Error("Invalid blank");
-    return Response.json(generated);
+    return Response.json(resolveConceptCard(output, input.concept, input.preferFillBlank));
   } catch (error) {
     const timeout = error instanceof Error && error.name === "TimeoutError";
     const code = timeout ? "PROVIDER_TIMEOUT" : input.operation === "extractConcepts" ? "INVALID_CONCEPTS" : "INVALID_CARD";
@@ -59,7 +46,8 @@ export async function handleGenerationOperation(request: Request, payload: unkno
       : input.operation === "extractConcepts" ? "The AI could not identify valid source references in this section. Retry to continue."
       : "The AI could not write a valid definition and blank for this concept. Retry to continue.";
     // Diagnostic categories only; never log source notes or provider payloads.
-    console.warn("generation_operation_failed", { stage: input.operation, code });
-    return Response.json({ error: message, code, stage: input.operation }, { status: 502 });
+    const reason = error instanceof CardValidationError ? error.reason : error instanceof SyntaxError ? "INVALID_JSON" : "INVALID_RESPONSE";
+    console.warn("generation_operation_failed", { stage: input.operation, code, reason });
+    return Response.json({ error: message, code, stage: input.operation, reason }, { status: 502 });
   }
 }
