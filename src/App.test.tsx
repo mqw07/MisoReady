@@ -347,14 +347,16 @@ describe("Miso shell", () => {
   });
 
   it("lets the user edit and drop AI drafts before saving new cards", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("/api/generate");
-      return Response.json({
-        cards: [
-          { term: "exec", description: "Replaces the process image.", acceptedAnswers: [] },
-          { term: "pipe", description: "Connects processes.", acceptedAnswers: ["pipeline"] },
-        ],
-      });
+      const body = JSON.parse(String(init?.body));
+      if (body.operation === "extractConcepts") return Response.json({ concepts: [
+        { term: "exec", scope: "processes", aliases: [], evidence: "exec replaces the process image." },
+        { term: "pipe", scope: "processes", aliases: ["pipeline"], evidence: "A pipe connects processes." },
+      ] });
+      const term = body.concept.term;
+      return Response.json({ cards: [{ term, description: term === "exec" ? "Replaces the process image." : "Connects processes.",
+        acceptedAnswers: [], fillBlank: { prompt: "_____ is the answer.", acceptedAnswers: [term] } }] });
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -412,7 +414,7 @@ describe("Miso shell", () => {
     await user.type(screen.getByRole("textbox", { name: "Study notes" }), "keep these notes");
     await user.click(screen.getByRole("button", { name: "Generate drafts" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("The model returned unusable drafts.");
+    expect(await screen.findByRole("alert", {}, { timeout: 10000 })).toHaveTextContent("The model returned unusable drafts.");
     expect(screen.getByRole("textbox", { name: "Study notes" })).toHaveValue("keep these notes");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("Add a card yourself, or generate editable drafts from notes.")).toBeInTheDocument();

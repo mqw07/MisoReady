@@ -1,3 +1,4 @@
+import type { GenerationCheckpoint } from "../../services/ai/generationPipeline.ts";
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   MAX_ALIAS_COUNT,
@@ -8,9 +9,6 @@ import {
 } from "../../features/library/validateCard.ts";
 import { requestGeneratedCards } from "../../services/ai/client.ts";
 import {
-  CARD_COUNT_OPTIONS,
-  DEFAULT_CARD_COUNT,
-  MAX_SOURCE_CHARS,
   type GeneratedCard,
 } from "../../services/ai/contract.ts";
 import { extractPdfNotes } from "../../services/ai/pdfNotes.ts";
@@ -98,7 +96,9 @@ function GenerateCardsForm({
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"compose" | "review">("compose");
   const [unitId, setUnitId] = useState(initialUnitId ?? units[0]?.id ?? "");
-  const [numberOfCards, setNumberOfCards] = useState(DEFAULT_CARD_COUNT);
+  const checkpointRef = useRef<GenerationCheckpoint | undefined>(undefined);
+  const [progress, setProgress] = useState("");
+  const [page, setPage] = useState(0);
   const [notes, setNotes] = useState("");
   const [preferFillBlank, setPreferFillBlank] = useState(true);
   const [pdfName, setPdfName] = useState<string | null>(null);
@@ -136,16 +136,18 @@ function GenerateCardsForm({
     abortRef.current = controller;
     setBusy(true);
     setError(null);
+    if (checkpointRef.current?.content !== notes || checkpointRef.current?.preferFillBlank !== preferFillBlank) {
+      checkpointRef.current = { content: notes, preferFillBlank, extracted: [], cards: [] };
+    }
     try {
       const result = await requestGeneratedCards(
         {
           content: notes,
           courseId: unit.courseId,
           unitId: unit.id,
-          numberOfCards,
           ...(preferFillBlank ? { preferFillBlank: true } : {}),
         },
-        { signal: controller.signal },
+        { signal: controller.signal, checkpoint: checkpointRef.current, onProgress: setProgress },
       );
       if (controller.signal.aborted) return;
       if (!result.ok) {
@@ -153,6 +155,7 @@ function GenerateCardsForm({
         return;
       }
       setDrafts(draftsFromCards(result.cards));
+      setPage(0);
       setDraftErrors({});
       setStep("review");
     } catch (caught) {
@@ -199,6 +202,8 @@ function GenerateCardsForm({
     }
     if (Object.keys(nextErrors).length > 0) {
       setDraftErrors(nextErrors);
+      const firstInvalid = drafts.findIndex((draft) => nextErrors[draft.id]);
+      setPage(Math.floor(firstInvalid / 25));
       setError("Fix the highlighted drafts before saving.");
       return;
     }
@@ -219,7 +224,19 @@ function GenerateCardsForm({
     setExtracting(true);
     setError(null);
     setNotice(null);
-    const result = await extractPdfNotes(file);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let result;
+    try {
+      result = await extractPdfNotes(file, controller.signal);
+    } catch {
+      if (controller.signal.aborted) return;
+      setExtracting(false);
+      setError("Could not read that PDF.");
+      return;
+    }
+    if (controller.signal.aborted) return;
     setExtracting(false);
     if ("error" in result) {
       setError(result.error);
@@ -229,11 +246,12 @@ function GenerateCardsForm({
     setNotes(result.text);
     setPdfName(file.name);
     setFromPdf(true);
-    if (result.truncated) {
-      setNotice(`Using the first ${String(MAX_SOURCE_CHARS)} characters from the PDF.`);
+    if (result.unreadablePages?.length) {
+      setNotice(`Pages without readable text: ${result.unreadablePages.join(", ")}. These pages need OCR and will not be analyzed.`);
     }
   }
 
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(drafts.length / 25) - 1));
   if (step === "review") {
     return (
       <form noValidate className="grid gap-4" onSubmit={handleSave}>
@@ -249,11 +267,11 @@ function GenerateCardsForm({
           <p className="text-sm text-muted">No drafts left. Generate again or close.</p>
         ) : (
           <ol className="grid max-h-[min(32rem,55vh)] gap-4 overflow-y-auto pr-1">
-            {drafts.map((draft, index) => (
+            {drafts.slice(currentPage * 25, currentPage * 25 + 25).map((draft, index) => (
               <li key={draft.id}>
                 <fieldset className="grid gap-3 rounded-2xl border border-line p-4">
                   <legend className="px-1 text-sm font-bold text-ink">
-                    Draft {String(index + 1)} of {String(drafts.length)}
+                    Draft {String(currentPage * 25 + index + 1)} of {String(drafts.length)}
                   </legend>
                   <TextField
                     label="Term"
@@ -319,6 +337,11 @@ function GenerateCardsForm({
             ))}
           </ol>
         )}
+        {drafts.length > 25 ? <nav aria-label="Draft pages" className="flex items-center justify-between gap-2">
+          <Button variant="secondary" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</Button>
+          <span>Page {currentPage + 1} of {Math.ceil(drafts.length / 25)}</span>
+          <Button variant="secondary" disabled={(currentPage + 1) * 25 >= drafts.length} onClick={() => setPage(currentPage + 1)}>Next</Button>
+        </nav> : null}
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="secondary"
@@ -344,7 +367,7 @@ function GenerateCardsForm({
         label="Unit"
         name="unitId"
         value={unitId}
-        disabled={lockUnit}
+        disabled={lockUnit || busy || extracting}
         onChange={(event) => {
           setUnitId(event.target.value);
           if (error) setError(null);
@@ -357,18 +380,7 @@ function GenerateCardsForm({
           </option>
         ))}
       </SelectField>
-      <SelectField
-        label="How many cards"
-        name="numberOfCards"
-        value={String(numberOfCards)}
-        onChange={(event) => setNumberOfCards(Number(event.target.value))}
-      >
-        {CARD_COUNT_OPTIONS.map((count) => (
-          <option key={count} value={count}>
-            {String(count)}
-          </option>
-        ))}
-      </SelectField>
+      <p className="text-sm text-muted">AI identifies the key concepts, then writes a card for each. There is no fixed card count.</p>
       <div>
         <label htmlFor={pdfInputId} className="mb-2 block text-sm font-bold text-ink">
           PDF notes
@@ -403,7 +415,7 @@ function GenerateCardsForm({
         name="notes"
         value={notes}
         rows={8}
-        maxLength={MAX_SOURCE_CHARS}
+        disabled={busy || extracting}
         hint="Miso turns these notes into editable drafts. Existing cards are never overwritten."
         onChange={(event) => {
           setNotes(event.target.value);
@@ -416,6 +428,7 @@ function GenerateCardsForm({
             id={fillBlankId}
             name="preferFillBlank"
             type="checkbox"
+            disabled={busy || extracting}
             checked={preferFillBlank}
             aria-label="Generate fill-in-the-blank prompts"
             onChange={(event) => setPreferFillBlank(event.target.checked)}
@@ -444,7 +457,7 @@ function GenerateCardsForm({
       ) : null}
       {busy ? (
         <p role="status" className="text-sm font-bold text-ink">
-          Generating drafts…
+          {progress || "Generating drafts…"}
         </p>
       ) : null}
       <div className="flex justify-end gap-2">

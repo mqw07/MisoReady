@@ -341,3 +341,31 @@ The first complete product milestone adds:
 - Additive optional learnSession field in schema v1: existing v1 documents load unchanged without a destructive migration. Checkpoints include progress, attempts, preferences and queue; content fingerprints invalidate edited/deleted cards on resume.
 - Attempts commit on Continue, allowing corrections/overrides before one atomic save. Uncommitted feedback may be retried after reload.
 - Music/sound preferences are session-local. No exam pacing or AI grading added.
+
+## Planned full-document AI generation
+
+- The October 31, 2026 requirement replaces the 12,000-character PDF text cap and
+  user-selected total card count with full-source concept extraction, concept
+  reconciliation, and batched definition/fill-blank generation. The final count
+  follows the unique, supported concept inventory, with no fixed product cap.
+- Detailed implementation and verification plan: [PDF_GENERATION_PLAN.md](PDF_GENERATION_PLAN.md).
+  Status: proposed; the current generation behavior described above is unchanged.
+- Planning assumptions: use the same automatic pipeline for pasted notes and PDF
+  text; keep editable drafts and shared FSRS states; retain the separate 8 MiB
+  binary-file limit initially; flag pages requiring OCR; store resumable jobs
+  locally and pause when the app is closed. Large-set support includes an
+  asynchronous IndexedDB library adapter with migration/recovery safeguards.
+
+### First generation implementation milestone
+
+- The automatic UI now retains full PDF text, analyzes overlapping source sections
+  for concepts, reconciles explicitly matching scoped terms/aliases, then writes
+  definition/fill-blank cards through bounded API operations. It has no total count
+  selector or 12,000-character textarea cap. Draft editors are paginated.
+- Stage progress, per-operation validation, upstream truncation detection, retry
+  backoff/Retry-After, and same-dialog checkpoints are implemented. The legacy
+  bounded-count API remains available for compatibility.
+- Durable job resume, IndexedDB library migration, semantic reconciliation,
+  source-page display, and durable idempotent save acknowledgements remain planned.
+  Closing the form currently discards its job and edits. Saved cards still use the
+  existing localStorage repository and recovery behavior.

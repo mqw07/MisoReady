@@ -157,15 +157,14 @@ export function insertCards(
   clock: MutationClock = {},
 ): { state: AppState; cards: Flashcard[] } | null {
   if (!state.units.some((unit) => unit.id === unitId)) return null;
-  let next = state;
+  const base = { ...state, cards: [] };
   const cards: Flashcard[] = [];
   for (const content of contents) {
-    const result = insertCard(next, unitId, content, { now: clock.now });
+    const result = insertCard(base, unitId, content, { now: clock.now });
     if (!result) return null;
-    next = result.state;
     cards.push(result.card);
   }
-  return { state: next, cards };
+  return { state: { ...state, cards: [...state.cards, ...cards] }, cards };
 }
 
 export function updateCard(

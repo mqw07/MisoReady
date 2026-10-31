@@ -44,8 +44,33 @@ beforeEach(() => {
 });
 
 describe("GenerateCardsDialog PDF notes", () => {
+  it("uses automatic coverage and paginates large draft sets without losing edits", async () => {
+    generateMock.mockResolvedValue({ ok: true, cards: Array.from({ length: 30 }, (_, index) => ({
+      term: `Concept ${index + 1}`, description: "Supported definition.", acceptedAnswers: [],
+    })) });
+    const user = userEvent.setup();
+    const onCommit = renderDialog();
+    expect(screen.queryByRole("combobox", { name: "How many cards" })).not.toBeInTheDocument();
+    const notes = screen.getByRole("textbox", { name: "Study notes" });
+    expect(notes).not.toHaveAttribute("maxlength");
+    await user.type(notes, "Complete source notes");
+    await user.click(screen.getByRole("button", { name: "Generate drafts" }));
+    expect(await screen.findByText("Draft 1 of 30")).toBeInTheDocument();
+    expect(screen.getAllByRole("textbox", { name: "Term" })).toHaveLength(25);
+    const first = screen.getAllByRole("textbox", { name: "Term" })[0]!;
+    await user.clear(first);
+    await user.type(first, "Edited first concept");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Draft 26 of 30")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    expect(screen.getByDisplayValue("Edited first concept")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save cards" }));
+    expect(onCommit.mock.calls[0]![1]).toHaveLength(30);
+    expect(generateMock.mock.calls[0]![0]).not.toHaveProperty("numberOfCards");
+  });
+
   it("extracts a PDF, keeps the notes on screen, and uses the fill-in-the-blank checkbox", async () => {
-    extractMock.mockResolvedValue({ text: "fork creates a child process", truncated: false });
+    extractMock.mockResolvedValue({ text: "fork creates a child process", truncated: false, pages: [], unreadablePages: [] });
     generateMock.mockResolvedValue({
       ok: true,
       cards: [
@@ -104,7 +129,7 @@ describe("GenerateCardsDialog PDF notes", () => {
   });
 
   it("does not treat a PDF upload as fill-in-the-blank by itself", async () => {
-    extractMock.mockResolvedValue({ text: "fork creates a child process", truncated: false });
+    extractMock.mockResolvedValue({ text: "fork creates a child process", truncated: false, pages: [], unreadablePages: [] });
     generateMock.mockResolvedValue({
       ok: true,
       cards: [{ term: "fork()", description: "Creates a new process.", acceptedAnswers: [] }],

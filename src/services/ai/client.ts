@@ -1,3 +1,4 @@
+import { generateFromConcepts, type PipelineOptions } from "./generationPipeline.ts";
 import {
   generateErrorSchema,
   parseGenerateResponse,
@@ -20,9 +21,17 @@ function fallbackError(status: number): string {
 }
 
 export async function requestGeneratedCards(
-  input: GenerateRequest,
-  options: { signal?: AbortSignal } = {},
+  input: GenerateRequest | Omit<GenerateRequest, "numberOfCards">,
+  options: PipelineOptions = {},
 ): Promise<GenerateClientResult> {
+  if (!("numberOfCards" in input)) {
+    try {
+      return { ok: true, cards: await generateFromConcepts(input.content, input.preferFillBlank === true, options) };
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      return { ok: false, error: error instanceof Error ? error.message : FALLBACK_ERROR };
+    }
+  }
   let response: Response;
   try {
     response = await fetch("/api/generate", {

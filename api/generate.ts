@@ -1,3 +1,4 @@
+import { handleGenerationOperation } from "./generationOperation.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   applyFillBlankPreference,
@@ -127,6 +128,9 @@ export async function handleGenerate(
     return jsonError("Send JSON.", 400);
   }
 
+  if (payload && typeof payload === "object" && "operation" in payload) {
+    return handleGenerationOperation(request, payload, options);
+  }
   const parsed = parseGenerateRequest(payload);
   if ("error" in parsed) return jsonError(parsed.error, 400);
 
@@ -184,8 +188,17 @@ function nodeHeaders(headers: IncomingMessage["headers"]): Headers {
 export async function handleNodeGenerate(req: IncomingMessage, res: ServerResponse): Promise<void> {
   try {
     const chunks: Buffer[] = [];
+    let bytes = 0;
     for await (const chunk of req) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytes += buffer.length;
+      if (bytes > MAX_BODY_BYTES) {
+        res.statusCode = 413;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "Those notes are too large to send." }));
+        return;
+      }
+      chunks.push(buffer);
     }
     const body = Buffer.concat(chunks);
     const method = req.method ?? "GET";

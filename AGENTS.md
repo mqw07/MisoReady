@@ -137,7 +137,9 @@ Flashcard creation Support manual create, edit, delete, duplicate, and
 move-to-unit. Required fields: term and description. Accepted aliases
 are optional. A course/unit must be selected before save. Show inline
 validation. Confirm destructive deletion of meaningful data. \### AI
-creation - User pastes source notes and chooses a bounded card count.;
+creation - User pastes notes or uploads a text PDF. AI identifies key concepts
+across the full source, then generates a card per concept in bounded requests.
+There is no fixed total card-count or source-character cap in the automatic flow.;
 Browser calls only the app's server endpoint.; Server calls the LLM and
 requests structured JSON. - Validate request and response with Zod.; AI
 output is always an editable **draft**.; User can edit/remove drafts

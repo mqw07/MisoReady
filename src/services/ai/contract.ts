@@ -196,8 +196,7 @@ export function parseGenerateResponse(payload: unknown): { cards: GeneratedCard[
   if (!list) return { error: "The model returned unusable drafts." };
   const cards = list
     .map(sanitizeGeneratedCard)
-    .filter((card): card is GeneratedCard => card !== null)
-    .slice(0, MAX_CARD_COUNT);
+    .filter((card): card is GeneratedCard => card !== null);
   if (cards.length === 0) return { error: "The model returned unusable drafts." };
   const checked = generateResponseSchema.safeParse({ cards });
   if (!checked.success) return { error: "The model returned unusable drafts." };
