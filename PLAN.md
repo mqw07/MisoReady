@@ -19,6 +19,9 @@ navigation use the correct session. Full suite: 182 tests pass; typecheck/lint/b
 pass. UI integration coverage uses the real library provider and repository,
 including reload recovery and unchanged cards, review schedules, and rewards.
 
+Published-browser verification also exposed a Vercel deep-link 404 on refresh.
+Added the SPA shell rewrite for client routes while excluding API and asset paths.
+
 ## Goal
 
 Build the Miso MVP as a reliable vertical learning loop:
