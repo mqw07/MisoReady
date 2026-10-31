@@ -369,3 +369,19 @@ The first complete product milestone adds:
   source-page display, and durable idempotent save acknowledgements remain planned.
   Closing the form currently discards its job and edits. Saved cards still use the
   existing localStorage repository and recovery behavior.
+
+### Generation validation repair
+
+- Concept extraction now asks for numbered source-passage IDs. The server resolves
+  each ID to original source text, avoiding failures when models retype mathematical
+  glyphs or PDF whitespace differently. Unknown IDs and fabricated quotations are
+  still rejected; legacy exact-quote responses remain supported.
+- Single-card generation uses the existing safe response sanitizer for optional
+  aliases/definition field names and normalizes one underscore blank to the stored
+  format. Missing blanks, wrong concepts and multiple cards remain invalid.
+- Errors identify extraction, card validation, provider refusal, truncation, and
+  timeout separately. Diagnostics record categories without source text.
+- Verified with mathematical regression fixtures and the reported PDF's extracted
+  text through an entirely local mocked-provider flow. Live generation of the
+  user's PDF was not performed because automatic approval review rejected that
+  document transfer. Full suite: 164 tests pass; typecheck/lint/build pass.
