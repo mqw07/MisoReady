@@ -1,3 +1,4 @@
+import { appPaths } from "../../routes.ts";
 import type { SessionKind } from "../../features/study/params.ts";
 import { ratingCounts } from "../../features/study/engine.ts";
 import type { ReviewRating } from "../../types/domain.ts";
@@ -43,7 +44,7 @@ export function SessionSummary({
         ))}
       </ul>
       <div className="mt-8">
-        <ButtonLink to="/" variant="secondary">
+        <ButtonLink to={appPaths.home} variant="secondary">
           Back to Today
         </ButtonLink>
       </div>

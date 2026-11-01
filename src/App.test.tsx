@@ -1,11 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.tsx";
 import { APP_STATE_STORAGE_KEY } from "./repositories/storage.ts";
 
+beforeEach(() => window.history.pushState({}, "", "/app"));
+
+async function renderApp() {
+  const result = render(<App />);
+  await screen.findByRole("heading", { level: 1 });
+  return result;
+}
+
 afterEach(() => {
-  window.history.pushState({}, "", "/");
+  window.history.pushState({}, "", "/app");
   vi.unstubAllGlobals();
 });
 
@@ -23,8 +31,8 @@ async function createCourseAndUnit(
 }
 
 describe("Miso shell", () => {
-  it("opens on Today with Miso in the dashboard portrait", () => {
-    render(<App />);
+  it("opens on Today with Miso in the dashboard portrait", async () => {
+    await renderApp();
 
     expect(screen.getByRole("heading", { level: 1, name: /good (morning|afternoon|evening)/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Due today" })).toBeInTheDocument();
@@ -35,7 +43,7 @@ describe("Miso shell", () => {
 
   it("collapses the desktop sidebar", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
     expect(nav).toHaveTextContent("Courses");
@@ -46,7 +54,7 @@ describe("Miso shell", () => {
 
   it("creates a course and a unit from the shell", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await user.click(screen.getByRole("button", { name: "New course" }));
     await user.click(screen.getByRole("button", { name: "Create course" }));
@@ -69,7 +77,7 @@ describe("Miso shell", () => {
 
   it("routes the utility pages and the mobile menu", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await user.click(screen.getByRole("link", { name: "Shop" }));
     expect(screen.getByRole("heading", { level: 1, name: "Shop" })).toBeInTheDocument();
@@ -92,15 +100,15 @@ describe("Miso shell", () => {
     expect(screen.queryByRole("dialog", { name: "Menu" })).not.toBeInTheDocument();
   });
 
-  it("shows a not-found page for unknown addresses", () => {
+  it("shows a not-found page for unknown addresses", async () => {
     window.history.pushState({}, "", "/missing");
-    render(<App />);
+    await renderApp();
     expect(screen.getByRole("heading", { level: 1, name: "Page not found" })).toBeInTheDocument();
   });
 
   it("keeps courses, units, and cards after remount", async () => {
     const user = userEvent.setup();
-    const first = render(<App />);
+    const first = await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -116,8 +124,8 @@ describe("Miso shell", () => {
     expect(screen.getByText("Fill-in-the-blank")).toBeInTheDocument();
 
     first.unmount();
-    window.history.pushState({}, "", "/");
-    render(<App />);
+    window.history.pushState({}, "", "/app");
+    await renderApp();
 
     expect(screen.getAllByRole("link", { name: "CSC209" }).length).toBeGreaterThan(0);
     expect(await screen.findByText("1 card is waiting.")).toBeInTheDocument();
@@ -130,7 +138,7 @@ describe("Miso shell", () => {
 
   it("renames, duplicates, moves, and cascade-deletes", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getByRole("button", { name: "Add unit" }));
@@ -188,7 +196,7 @@ describe("Miso shell", () => {
 
   it("reviews a due card in reveal mode and updates the schedule", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -213,7 +221,7 @@ describe("Miso shell", () => {
 
   it("records Study all without rescheduling due cards", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -238,7 +246,7 @@ describe("Miso shell", () => {
 
   it("grades a typed answer and awards points on a scheduled review", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -271,7 +279,7 @@ describe("Miso shell", () => {
 
   it("grades a fill-in-the-blank from a stored prompt", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -294,7 +302,7 @@ describe("Miso shell", () => {
 
   it("buys round glasses with review points and keeps them equipped after remount", async () => {
     const user = userEvent.setup();
-    const first = render(<App />);
+    const first = await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -324,8 +332,8 @@ describe("Miso shell", () => {
     expect(screen.getByRole("button", { name: "Brown sunglasses, 60 points more needed" })).toBeDisabled();
 
     first.unmount();
-    window.history.pushState({}, "", "/");
-    render(<App />);
+    window.history.pushState({}, "", "/app");
+    await renderApp();
 
     expect(screen.getAllByText(/30 points/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1-day streak/).length).toBeGreaterThan(0);
@@ -339,7 +347,7 @@ describe("Miso shell", () => {
   it("does not overwrite unreadable saved data", async () => {
     window.localStorage.setItem(APP_STATE_STORAGE_KEY, "{not-json");
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     expect(screen.getByRole("alert")).toHaveTextContent("Saved study data could not be read");
     await createCourseAndUnit(user);
@@ -360,7 +368,7 @@ describe("Miso shell", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -406,7 +414,7 @@ describe("Miso shell", () => {
       ),
     );
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -423,7 +431,7 @@ describe("Miso shell", () => {
 
   it("keeps a second course separate in the sidebar", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getByRole("button", { name: "New course" }));
@@ -438,7 +446,7 @@ describe("Miso shell", () => {
 
   it("completes a scheduled reveal session from the keyboard", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -456,7 +464,7 @@ describe("Miso shell", () => {
 
   it("accepts a conservative typo and rejects a short technical token", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);
@@ -489,7 +497,7 @@ describe("Miso shell", () => {
 
   it("uses mixed mode without creating a second schedule", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    await renderApp();
 
     await createCourseAndUnit(user);
     await user.click(screen.getAllByRole("link", { name: "Processes" })[0]!);

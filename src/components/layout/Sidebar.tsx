@@ -1,3 +1,4 @@
+import { appPaths } from "../../routes.ts";
 import { useState, type ReactNode, type Ref } from "react";
 import { NavLink } from "react-router";
 import { useLibrary } from "../../features/library/useLibrary.ts";
@@ -99,7 +100,7 @@ export function Sidebar({
         }`}
       >
         <NavLink
-          to="/"
+          to={appPaths.home}
           end
           aria-label="Miso, home"
           title={collapsed ? "Miso" : undefined}
@@ -142,8 +143,8 @@ export function Sidebar({
 
       <nav aria-label="Primary" className="flex min-h-0 flex-1 flex-col px-2 pb-4">
         <div className="space-y-1">
-          <NavItem to="/" label="Home" icon={<HomeIcon />} collapsed={collapsed} onNavigate={onNavigate} />
-          <NavItem to="/study" label="Study" icon={<BookIcon />} collapsed={collapsed} onNavigate={onNavigate} />
+          <NavItem to={appPaths.home} label="Home" icon={<HomeIcon />} collapsed={collapsed} onNavigate={onNavigate} />
+          <NavItem to={appPaths.study()} label="Study" icon={<BookIcon />} collapsed={collapsed} onNavigate={onNavigate} />
           <button
             type="button"
             onClick={onNewCourse}
@@ -189,7 +190,7 @@ export function Sidebar({
                           />
                         </button>
                         <NavLink
-                          to={`/courses/${course.id}`}
+                          to={appPaths.course(course.id)}
                           onClick={onNavigate}
                           className={({ isActive }) =>
                             `flex min-h-10 min-w-0 flex-1 items-center truncate rounded-2xl px-2 text-[0.95rem] font-extrabold text-ink ${
@@ -208,7 +209,7 @@ export function Sidebar({
                             courseUnits.map((unit) => (
                               <li key={unit.id}>
                                 <NavLink
-                                  to={`/courses/${course.id}/units/${unit.id}`}
+                                  to={appPaths.unit(course.id, unit.id)}
                                   end
                                   onClick={onNavigate}
                                   className={({ isActive }) =>
@@ -236,16 +237,16 @@ export function Sidebar({
 
         <div className={`space-y-1 ${collapsed ? "mt-auto" : "mt-4"}`}>
           <NavItem
-            to="/miso"
+            to={appPaths.miso}
             label="Miso"
             icon={<MisoMark sprite="small" className="h-8 w-auto" />}
             collapsed={collapsed}
             onNavigate={onNavigate}
           />
-          <NavItem to="/shop" label="Shop" icon={<ShopIcon />} collapsed={collapsed} onNavigate={onNavigate} />
-          <NavItem to="/stats" label="Stats" icon={<StatsIcon />} collapsed={collapsed} onNavigate={onNavigate} />
+          <NavItem to={appPaths.shop} label="Shop" icon={<ShopIcon />} collapsed={collapsed} onNavigate={onNavigate} />
+          <NavItem to={appPaths.stats} label="Stats" icon={<StatsIcon />} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem
-            to="/settings"
+            to={appPaths.settings}
             label="Settings"
             icon={<SettingsIcon />}
             collapsed={collapsed}

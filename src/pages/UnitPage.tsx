@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { CardFormDialog } from "../components/cards/CardFormDialog.tsx";
@@ -49,7 +50,7 @@ export function UnitPage() {
     return (
       <>
         <PageHeader eyebrow="Unit" title="Unit not found" lede="That unit is not saved on this device." />
-        <ButtonLink to="/" variant="secondary">
+        <ButtonLink to={appPaths.home} variant="secondary">
           Back to Today
         </ButtonLink>
       </>
@@ -79,19 +80,19 @@ export function UnitPage() {
         }
       />
       <p className="mb-6 text-sm text-muted">
-        <Link to={`/courses/${course.id}`} className="font-bold underline decoration-line-strong underline-offset-4">
+        <Link to={appPaths.course(course.id)} className="font-bold underline decoration-line-strong underline-offset-4">
           Back to {course.name}
         </Link>
       </p>
       <div className="mb-6 flex flex-wrap gap-2">
         <ButtonLink
-          to={`/study?courseId=${course.id}&unitId=${unit.id}&scope=due`}
+          to={appPaths.study({ courseId: course.id, unitId: unit.id, scope: "due" })}
           variant={dueCount === 0 ? "secondary" : "primary"}
         >
           Study due
         </ButtonLink>
-        <ButtonLink to={`/learn?courseId=${course.id}&unitId=${unit.id}`} variant="secondary">Learn</ButtonLink>
-        <ButtonLink to={`/study?courseId=${course.id}&unitId=${unit.id}&scope=all`} variant="secondary">
+        <ButtonLink to={appPaths.learn({ courseId: course.id, unitId: unit.id })} variant="secondary">Learn</ButtonLink>
+        <ButtonLink to={appPaths.study({ courseId: course.id, unitId: unit.id, scope: "all" })} variant="secondary">
           Study all
         </ButtonLink>
         <Button onClick={() => setCardDialogOpen(true)}>Add card</Button>
@@ -201,7 +202,7 @@ export function UnitPage() {
         onConfirm={() => {
           setDeleteBusy(true);
           deleteUnit(unit.id);
-          navigate(`/courses/${course.id}`);
+          navigate(appPaths.course(course.id));
         }}
       />
     </>

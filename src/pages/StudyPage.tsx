@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
@@ -238,7 +239,7 @@ export function StudyPage() {
                 : "New and due cards wait here. Opening Miso does not count as a review."
           }
           action={
-            <ButtonLink to="/" variant="secondary">
+            <ButtonLink to={appPaths.home} variant="secondary">
               Back to Today
             </ButtonLink>
           }

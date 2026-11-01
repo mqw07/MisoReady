@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { MisoPortrait } from "../components/miso/MisoPortrait.tsx";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
 import { GrassStrip, PixelSparkle } from "../components/pixel/decor.tsx";
@@ -75,7 +76,7 @@ export function MisoPage() {
               </ul>
             )}
             <div className="mt-5">
-              <ButtonLink to="/shop" variant="secondary">
+              <ButtonLink to={appPaths.shop} variant="secondary">
                 Visit the shop
               </ButtonLink>
             </div>

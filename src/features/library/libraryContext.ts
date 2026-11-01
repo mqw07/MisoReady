@@ -14,6 +14,9 @@ import type {
 } from "../../types/domain.ts";
 
 export interface LibraryValue {
+  hasUnsavedChanges: boolean;
+  navigationRisks: string[];
+  setNavigationRisk: (id: string, reason: string | null) => void;
   persistBlocked: boolean;
   persistError: string | null;
   retrySave: () => void;

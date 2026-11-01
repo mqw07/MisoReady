@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { CardFormDialog } from "../components/cards/CardFormDialog.tsx";
@@ -32,7 +33,7 @@ export function CoursePage() {
     return (
       <>
         <PageHeader eyebrow="Course" title="Course not found" lede="That course is not saved on this device." />
-        <ButtonLink to="/" variant="secondary">
+        <ButtonLink to={appPaths.home} variant="secondary">
           Back to Today
         </ButtonLink>
       </>
@@ -62,11 +63,11 @@ export function CoursePage() {
         }
       />
       <div className="mb-6 flex flex-wrap gap-2">
-        <ButtonLink to={`/learn?courseId=${course.id}`} variant="secondary">Learn</ButtonLink>
-        <ButtonLink to={`/study?courseId=${course.id}&scope=due`} variant={dueCount === 0 ? "secondary" : "primary"}>
+        <ButtonLink to={appPaths.learn({ courseId: course.id })} variant="secondary">Learn</ButtonLink>
+        <ButtonLink to={appPaths.study({ courseId: course.id, scope: "due" })} variant={dueCount === 0 ? "secondary" : "primary"}>
           Study due
         </ButtonLink>
-        <ButtonLink to={`/study?courseId=${course.id}&scope=all`} variant="secondary">
+        <ButtonLink to={appPaths.study({ courseId: course.id, scope: "all" })} variant="secondary">
           Study all
         </ButtonLink>
         <Button
@@ -95,7 +96,7 @@ export function CoursePage() {
             return (
               <li key={unit.id}>
                 <Link
-                  to={`/courses/${course.id}/units/${unit.id}`}
+                  to={appPaths.unit(course.id, unit.id)}
                   className="group pixel-box pixel-box-sm pixel-box-link pb-surface relative flex items-center gap-4 px-4 py-4 transition-transform duration-150 hover:-translate-y-px motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                 >
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center bg-lavender text-ink-soft">
@@ -153,7 +154,7 @@ export function CoursePage() {
         onConfirm={() => {
           setDeleteBusy(true);
           deleteCourse(course.id);
-          navigate("/");
+          navigate(appPaths.home);
         }}
       />
       <CardFormDialog

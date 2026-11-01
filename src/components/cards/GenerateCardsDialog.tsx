@@ -1,5 +1,6 @@
 import type { GenerationCheckpoint } from "../../services/ai/generationPipeline.ts";
-import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useContext, useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { LibraryContext } from "../../features/library/libraryContext.ts";
 import {
   MAX_ALIAS_COUNT,
   MAX_DESCRIPTION_LENGTH,
@@ -109,6 +110,14 @@ function GenerateCardsForm({
   const [draftErrors, setDraftErrors] = useState<Record<string, CardFieldErrors>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const riskId = useId();
+  const setNavigationRisk = useContext(LibraryContext)?.setNavigationRisk;
+  const hasDraftWork = busy || extracting || notes.trim().length > 0 || drafts.length > 0;
+
+  useEffect(() => {
+    setNavigationRisk?.(riskId, hasDraftWork ? "Unfinished card generation" : null);
+    return () => setNavigationRisk?.(riskId, null);
+  }, [setNavigationRisk, riskId, hasDraftWork]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();

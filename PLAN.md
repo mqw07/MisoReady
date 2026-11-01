@@ -423,3 +423,29 @@ The first complete product milestone adds:
 - Live OpenAI calls with authored uniform-distribution and continuous-random-variable
   examples returned valid cards and correctly aligned blanks. No user PDF was sent.
   This server-only change preserves same-dialog extraction checkpoints on retry.
+
+### Sky Studio landing page — implemented locally
+
+- `/` is now the public landing page, matching option B's sky/cream composition.
+  The desktop hero follows the supplied reference; mobile stacks the study demo
+  and reduces decoration. The local demo supports typed recall, reveal, and sample
+  card browsing without reading the library, taking a writer lock, awarding points,
+  or calling AI. Unsupported Notes and hint controls are omitted.
+- The existing application lives at `/app` and lazy-loads separately. Shared route
+  builders cover navigation, breadcrumbs, study exits, and delete destinations.
+  Legacy course/unit and utility URLs replace history and retain queries/fragments.
+  The storage key, schema, and origin configuration are unchanged.
+- React Router departure guards retain the provider and writer lock after failed
+  saves. Retry must succeed before departure. Unfinished generation/notes/drafts
+  prompt users to stay or explicitly discard and cancel; beforeunload also warns.
+- Authentication and cloud persistence remain separate future releases. Existing
+  Vercel rewrites already cover direct application routes and retain API/asset
+  routing. No deployment or production-data mutation was performed in this step.
+- Generated transparent assets and exact prompts are documented in
+  `src/assets/landing/README.md`. Public title, description, and social metadata
+  are included. Desktop/mobile screenshots are under `design/landing-preview/`.
+- Validation: all 182 existing tests and 13 new landing/routing/lifecycle tests
+  pass; typecheck, lint, and production build pass. Browser QA covered desktop,
+  mobile without horizontal overflow, keyboard example submission, app entry,
+  course creation, saved-library reload, and legacy query/fragment redirects.
+  A public tab and active application tab coexist; console showed no errors.

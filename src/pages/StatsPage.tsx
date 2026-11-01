@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { PageHeader } from "../components/layout/PageHeader.tsx";
 import { ButtonLink } from "../components/ui/Button.tsx";
 import { EmptyState } from "../components/ui/EmptyState.tsx";
@@ -42,7 +43,7 @@ export function StatsPage() {
             title="No study history yet"
             body="Study a due card to start these counts. Opening Miso does not add a review."
             action={
-              <ButtonLink to="/study" variant="secondary">
+              <ButtonLink to={appPaths.study()} variant="secondary">
                 Study due
               </ButtonLink>
             }

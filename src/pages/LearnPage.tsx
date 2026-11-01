@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { StudyCompanion } from "../components/miso/StudyCompanion.tsx";
@@ -146,7 +147,7 @@ function LearnSessionScreen({ sessionKey, courseId, unitId }: {
         {!session.queue.length ? <div className="space-y-4">
           <h2 className="text-xl font-bold">Learning cycle complete</h2>
           <p>Keep using scheduled reviews to retain what you learned.</p>
-          <ButtonLink to="/study">Review due cards</ButtonLink>
+          <ButtonLink to={appPaths.study()}>Review due cards</ButtonLink>
         </div> : round ? <div className="space-y-4">
           <h2 className="text-xl font-bold">Round complete</h2>
           <p>{session.attempts.slice(-session.roundSize).filter(attempt => attempt.correct).length} correct this round. {session.progress.filter(item => item.mistakes > 0 && !item.mastered).length} terms need more practice.</p>
@@ -180,7 +181,7 @@ function LearnSessionScreen({ sessionKey, courseId, unitId }: {
         </div> : <p>These cards cannot use the selected formats. Enable Typing or Flashcards in Settings.</p>}
         <div className="flex flex-wrap gap-4">
           <Button variant="secondary" onClick={() => openSettings()}>Settings</Button>
-          <ButtonLink to="/" variant="secondary">Save and exit</ButtonLink>
+          <ButtonLink to={appPaths.home} variant="secondary">Save and exit</ButtonLink>
           <Button variant="secondary" onClick={() => openSettings(true)}>New learning cycle</Button>
         </div>
         <p className="text-sm text-muted">Progress saves after Continue. Retyping is corrective practice and does not add mastery credit. Small sets may repeat questions sooner.</p>

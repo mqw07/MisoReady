@@ -1,3 +1,4 @@
+import { appPaths } from "../../routes.ts";
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { useLibrary } from "../../features/library/useLibrary.ts";
@@ -55,7 +56,7 @@ export function AppLayout() {
         </aside>
 
         <div className="relative flex min-w-0 flex-1 flex-col">
-          <Atmosphere hero={location.pathname === "/"} />
+          <Atmosphere hero={location.pathname.replace(/\/+$/, "") === appPaths.home} />
           <header className="relative z-10 flex items-center gap-3 border-b-2 border-line bg-sidebar px-4 py-3 lg:hidden">
             <button
               type="button"
@@ -100,7 +101,7 @@ export function AppLayout() {
         onSubmit={(name) => {
           const course = createCourse(name);
           setCourseDialogOpen(false);
-          navigate(`/courses/${course.id}`);
+          navigate(appPaths.course(course.id));
         }}
       />
     </div>

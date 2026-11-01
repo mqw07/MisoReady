@@ -1,36 +1,27 @@
-import { LearnPage } from "./pages/LearnPage.tsx";
-import { BrowserRouter, Route, Routes } from "react-router";
-import { AppLayout } from "./components/layout/AppLayout.tsx";
-import { LibraryProvider } from "./features/library/LibraryProvider.tsx";
-import { CoursePage } from "./pages/CoursePage.tsx";
-import { MisoPage } from "./pages/MisoPage.tsx";
-import { NotFoundPage } from "./pages/NotFoundPage.tsx";
-import { SettingsPage } from "./pages/SettingsPage.tsx";
-import { ShopPage } from "./pages/ShopPage.tsx";
-import { StatsPage } from "./pages/StatsPage.tsx";
-import { StudyPage } from "./pages/StudyPage.tsx";
-import { TodayPage } from "./pages/TodayPage.tsx";
-import { UnitPage } from "./pages/UnitPage.tsx";
+import { useState } from "react";
+import { createBrowserRouter, Link, Navigate, RouterProvider, useLocation } from "react-router";
+import { LandingPage } from "./pages/LandingPage.tsx";
+import { appPaths } from "./routes.ts";
+
+function LegacyRedirect() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate replace to={`${appPaths.home}${pathname}${search}${hash}`} />;
+}
+
+function PublicNotFound() {
+  return <main className="p-10"><h1 className="text-3xl">Page not found</h1><p className="my-4">That address is not part of Miso.</p><Link to="/" className="underline">Back to Miso</Link></main>;
+}
+
+function AppLoading() {
+  return <main className="grid min-h-dvh place-items-center bg-canvas"><p role="status">Opening Miso…</p></main>;
+}
 
 export function App() {
-  return (
-    <BrowserRouter>
-      <LibraryProvider>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<TodayPage />} />
-            <Route path="learn" element={<LearnPage />} />
-            <Route path="study" element={<StudyPage />} />
-            <Route path="miso" element={<MisoPage />} />
-            <Route path="shop" element={<ShopPage />} />
-            <Route path="stats" element={<StatsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="courses/:courseId" element={<CoursePage />} />
-            <Route path="courses/:courseId/units/:unitId" element={<UnitPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </LibraryProvider>
-    </BrowserRouter>
-  );
+  const [router] = useState(() => createBrowserRouter([
+    { path: "/", Component: LandingPage },
+    { path: "/app/*", lazy: () => import("./Application.tsx"), HydrateFallback: AppLoading },
+    ...["learn", "study", "miso", "shop", "stats", "settings", "courses/:courseId", "courses/:courseId/units/:unitId"].map(path => ({ path: `/${path}`, Component: LegacyRedirect })),
+    { path: "*", Component: PublicNotFound },
+  ]));
+  return <RouterProvider router={router} />;
 }

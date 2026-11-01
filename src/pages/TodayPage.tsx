@@ -1,3 +1,4 @@
+import { appPaths } from "../routes.ts";
 import { Link } from "react-router";
 import { ArrowRightIcon, BookIcon, GraduationIcon, NoteIcon, PlayIcon, TodayIcon } from "../components/icons.tsx";
 import { MisoPortrait } from "../components/miso/MisoPortrait.tsx";
@@ -49,7 +50,7 @@ export function TodayPage() {
             <p className="font-pixel text-6xl leading-none text-ink tabular-nums">{dueCount}</p>
             <p className="mt-2 text-sm leading-6 font-semibold text-muted">{dueLabel}</p>
             <div className="mt-2.5">
-              <ButtonLink to="/study">
+              <ButtonLink to={appPaths.study()}>
                 <PlayIcon />
                 Study due
               </ButtonLink>
@@ -104,7 +105,7 @@ export function TodayPage() {
           </div>
           {recent ? (
             <Link
-              to={`/courses/${recent.id}`}
+              to={appPaths.course(recent.id)}
               className="group flex items-center gap-4 px-5 pt-4 pb-6 focus-visible:outline-offset-[-4px]"
             >
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-lavender text-[#5a4a8f]">
@@ -145,7 +146,7 @@ export function TodayPage() {
                   return (
                     <li key={course.id}>
                       <Link
-                        to={`/courses/${course.id}`}
+                        to={appPaths.course(course.id)}
                         className="group pixel-box pixel-box-sm pixel-box-link pb-leaf relative flex items-center gap-4 px-4 py-4 transition-transform duration-150 hover:-translate-y-px motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                       >
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-soft text-accent-ink">

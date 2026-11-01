@@ -37,6 +37,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [writeReady, setWriteReady] = useState(false);
   const ownsLock = useRef(false);
   const dirty = useRef(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [navigationRiskMap, setNavigationRiskMap] = useState<Record<string, string>>({});
+  const hasTransientWork = useRef(false);
+  const setNavigationRisk = useCallback((id: string, reason: string | null) => {
+    setNavigationRiskMap(current => {
+      const next = { ...current };
+      if (reason) next[id] = reason;
+      else delete next[id];
+      hasTransientWork.current = Object.keys(next).length > 0;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!navigator.locks) {
@@ -70,7 +82,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function beforeUnload(event: BeforeUnloadEvent) {
-      if (dirty.current) { event.preventDefault(); event.returnValue = ""; }
+      if (dirty.current || hasTransientWork.current) { event.preventDefault(); event.returnValue = ""; }
     }
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
@@ -84,6 +96,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (persistBlocked) return;
       const result = repository.save(next);
       dirty.current = result.status === "error";
+      setHasUnsavedChanges(dirty.current);
       setPersistError(result.status === "error" ? result.reason : null);
     },
     [persistBlocked, repository],
@@ -257,6 +270,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      hasUnsavedChanges,
+      navigationRisks: Object.values(navigationRiskMap),
+      setNavigationRisk,
       writeReady,
       retrySave,
       clearStudySession,
@@ -286,6 +302,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       submitReview,
     }),
     [
+      hasUnsavedChanges,
+      navigationRiskMap,
+      setNavigationRisk,
       writeReady,
       retrySave,
       clearStudySession,
